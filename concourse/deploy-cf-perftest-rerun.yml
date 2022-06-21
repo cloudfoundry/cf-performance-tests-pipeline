@@ -1,0 +1,590 @@
+
+resources:
+  - name: cf-deployment-concourse-tasks
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-deployment-concourse-tasks.git
+  - name: perf-test-repo-source
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
+      username: ((github-serviceuser-username))
+      password: ((github-serviceuser-token))
+      branch: ((cf-d.source)) # required for "put"
+  - name: perf-test-repo-target
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
+      username: ((github-serviceuser-username))
+      password: ((github-serviceuser-token))
+      branch: ((cf-d.target)) # required for "put"
+  - name: perf-test-repo-charts
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
+      username: ((github-serviceuser-username))
+      password: ((github-serviceuser-token))
+      branch: rerun-charts # required for "put"
+  - name: bbl-state
+    type: s3
+    source:
+      region_name: eu-central-1
+      bucket: ((bbl-state-bucket-name))
+      versioned_file: bbl-state.tar.gz
+      access_key_id: ((bbl-state-bucket-access-key-id))
+      secret_access_key: ((bbl-state-bucket-access-key-secret))
+  - name: cf-deployment
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-deployment.git
+      branch: ((cf-d.source))
+  - name: ops-files
+    type: git
+    source:
+      branch: main
+      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
+      username: ((github-serviceuser-username))
+      password: ((github-serviceuser-token))
+  - name: vars-files
+    type: s3
+    source:
+      region_name: eu-central-1
+      bucket: ((bbl-state-bucket-name))
+      versioned_file: artifactory-credentials.yml
+      access_key_id: ((bbl-state-bucket-access-key-id))
+      secret_access_key: ((bbl-state-bucket-access-key-secret))
+  - name: cf-performance-tests
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-performance-tests.git
+      branch: main
+  - name: lb-certificate
+    type: s3
+    source:
+      region_name: eu-central-1
+      bucket: ((bbl-state-bucket-name))
+      versioned_file: lb_certificate.tar.gz
+      access_key_id: ((bbl-state-bucket-access-key-id))
+      secret_access_key: ((bbl-state-bucket-access-key-secret))
+
+jobs:
+  - name: set-pipeline
+    serial: true
+    plan:
+      - get: perf-test-repo-source
+        trigger: true
+      - set_pipeline: self
+        file: concourse/deploy-cf-perftest-rerun.yml
+        var_files:
+          - perf-test-repo-source/rerun-vars/((cf-d.source)).yml
+  - name: bbl-up
+    serial: true
+    plan:
+      - get: cf-deployment-concourse-tasks
+      - get: perf-test-repo-source
+        trigger: true
+      - get: lb-certificate
+        params:
+          unpack: true
+      - get: bbl-state
+        params:
+          unpack: true
+      - task: bbl-up
+        input_mapping:
+          bbl-config: perf-test-repo-source
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: cloudfoundry/cf-deployment-concourse-tasks
+            version:
+              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+          inputs:
+            - name: cf-deployment-concourse-tasks  # - This repo
+            - name: bbl-state  # - The S3 bucket containing bbl state
+            - name: bbl-config
+            - name: lb-certificate
+
+          outputs:
+            - name: updated-bbl-state
+          # - The bbl-state resource, with changes git committed,
+          # - ready to be `put` to a git resource.
+          # - This output _must_ be persisted for these tasks to function properly
+
+          run:
+            path: echo
+            args: [ "BBL UP" ]
+#            path: cf-deployment-concourse-tasks/bbl-up/task
+
+          params:
+            # AWS Configuration Params
+            # - Required for AWS
+            BBL_AWS_ACCESS_KEY_ID: ((aws-access-key-id))
+            BBL_AWS_SECRET_ACCESS_KEY: ((aws-access-key-secret))
+            BBL_AWS_REGION: eu-central-1
+
+            # Azure Configuration Params
+            # - Required for Azure
+            BBL_AZURE_CLIENT_ID:
+            BBL_AZURE_CLIENT_SECRET:
+            BBL_AZURE_TENANT_ID:
+            BBL_AZURE_SUBSCRIPTION_ID:
+            BBL_AZURE_REGION:
+
+            # GCP Configuration Params
+            # - Required for GCP
+            BBL_GCP_SERVICE_ACCOUNT_KEY:
+            # - Key content or path to the file containing credentials downloaded from GCP
+            # - Path is relative to the `bbl-state` input
+            BBL_GCP_REGION:
+
+            # OpenStack Configuration Params
+            # - Required for OpenStack
+            BBL_OPENSTACK_AUTH_URL:
+            BBL_OPENSTACK_AZ:
+            BBL_OPENSTACK_NETWORK_ID:
+            BBL_OPENSTACK_NETWORK_NAME:
+            BBL_OPENSTACK_PASSWORD:
+            BBL_OPENSTACK_USERNAME:
+            BBL_OPENSTACK_PROJECT:
+            BBL_OPENSTACK_DOMAIN:
+            BBL_OPENSTACK_REGION:
+
+            # vSphere Configuration Params
+            # - Required for vSphere
+            BBL_VSPHERE_VCENTER_USER:
+            BBL_VSPHERE_VCENTER_PASSWORD:
+            BBL_VSPHERE_VCENTER_IP:
+            BBL_VSPHERE_VCENTER_DC:
+            BBL_VSPHERE_VCENTER_CLUSTER:
+            BBL_VSPHERE_VCENTER_RP:
+            BBL_VSPHERE_NETWORK:
+            BBL_VSPHERE_VCENTER_DS:
+            BBL_VSPHERE_SUBNET_CIDR:
+            BBL_VSPHERE_VCENTER_DISKS:
+            BBL_VSPHERE_VCENTER_TEMPLATES:
+            BBL_VSPHERE_VCENTER_VMS:
+
+            BBL_STATE_DIR: state
+            # - Path to the directory containing the `bbl-state.json` file
+            # - The path is relative to the `bbl-state` input
+            # - If blank or '.', uses `bbl-state` input as the location for bbl state
+            # - If the specified path does not exist, it will be created
+
+            BBL_CONFIG_DIR: bbl-patches
+            # - Optional
+            # - Path to the directory containing bbl plan patches
+            # - The path is relative to the `bbl-config` input
+            # - If left empty, no customizations (i.e. ops-files, terraform templates, etc.) will be applied during `bbl up`
+
+            BBL_IAAS: aws
+            # - Required
+            # - The target IAAS which bbl will create infrastructure
+            # - Must be `aws` or `azure` or `gcp` or `openstack` or `vsphere`
+
+            BBL_LB_CERT: ../../lb-certificate/lb_certificate/cert.pem
+            # - Required if `SKIP_LB_CREATION` is false
+            # - PEM encoded certificate to be associated with the load balancer
+            #   for SSL termination
+            # - Can be either the certificate content or a path to the certificate
+            # - If a path is provided, path is relative to the BBL_STATE_DIR
+
+            BBL_LB_CERT_CHAIN:
+            # - Optional
+            # - PEM encoded certificate to be associated with the load balancer
+            #   certificate chain
+            # - Can be either the certificate content or a path to the certificate
+            # - If a path is provided, path is relative to the BBL_STATE_DIR
+
+            BBL_LB_KEY: ../../lb-certificate/lb_certificate/key.pem
+            # - Required if `SKIP_LB_CREATION` is false
+            # - PEM-encoded private key to be used for TLS termination on the load
+            #   balancer.
+            # - Can be either the key content or a path to the key
+            # - If a path is provided, path is relative to the BBL_STATE_DIR
+
+            LB_DOMAIN: ((system-domain))
+            # - Required if `SKIP_LB_CREATION` is false
+            # - The domain which bbl will register
+
+            BBL_ENV_NAME:
+            # - Optional
+            # - A label to apply to the bbl environment
+            # - Label will appear in the IaaS metadata/interface
+
+            GIT_COMMIT_EMAIL:
+            GIT_COMMIT_USERNAME:
+            GIT_COMMIT_MESSAGE:
+            # - Optional
+            # - You may choose the git committer
+            #   username, email address and message by setting these
+
+            SKIP_LB_CREATION: false
+            # - Optional
+            # - Set to `true` to skip load balancer creation,
+            # - for example, a BOSH Lite environment
+
+            DEBUG_MODE: false
+            # - Optional
+            # - BE CAREFUL! For public pipelines it can cause credentials disclosure.
+            # - With `false` all output from BBL calls will be saved in log files inside concourse job only.
+            # - Set this to `true` to see all output straight in the pipeline.
+
+            STORE_BBL_STATE_AS_TARBALL: true
+            # - Optional
+            # - Creates a tarball of the bbl-state directory, instead of treating it
+            # - as a git repo and committing.
+            # - This is useful if you want to store your state file in S3 or GCS.
+
+            DELETE_TERRAFORM_PLUGINS: true
+            # - Optional
+            # - Deletes Terraform plugins in the bbl state directory before pushing or uploading state
+            # - These plugins are very large (around 50 MB for the Google plugin, for instance)
+            # - bbl will replace them on its next operation
+            # - Set this to `false` to keep these plugins
+
+        ensure:
+          put: bbl-state
+          params:
+            file: updated-bbl-state/bbl-state.tgz
+
+  - name: bosh-deploy
+    serial: true
+    serial_groups: [bosh-deploy-run-performance-tests]
+    plan:
+      - get: cf-deployment-concourse-tasks
+      - get: bbl-state
+        params:
+          unpack: true
+        passed:
+          - bbl-up
+        trigger: true
+      - get: cf-deployment
+      - get: ops-files
+      - get: vars-files
+      - task: bosh-deploy
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: cloudfoundry/cf-deployment-concourse-tasks
+            version:
+              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+
+          inputs:
+            - name: bbl-state  # - The repo containing the Director's bbl state dir
+            - name: cf-deployment  # - The cf-deployment manifest
+            - name: ops-files  # - Operations files to be made available
+            - name: vars-files
+            - name: cf-deployment-concourse-tasks  # - This repo
+
+          run:
+            path: echo
+            args: [ "bosh deploy" ]
+#            path: cf-deployment-concourse-tasks/bosh-deploy/task
+
+          params:
+            BBL_STATE_DIR: state
+            # - Path to the directory containing the `bbl-state.json` file
+            # - The path is relative to the `bbl-state` input
+            # - If blank or '.', uses `bbl-state` input as the location for bbl state
+            # - If the specified path does not exist, it will be created
+            # - This input and parameter will be ignored if toolsmiths-env is provided
+
+            MANIFEST_FILE: cf-deployment.yml
+            # - Required
+            # - Filepath to the manifest file within the cf-deployment resource
+            # - The path is relative to root of the `cf-deployment` input
+
+            SYSTEM_DOMAIN: ((system-domain))
+            # - Required unless toolsmiths-env optional input is provided
+            # - CF system base domain e.g. `my-cf.com`
+
+            OPS_FILES: "operations/use-postgres.yml operations/scale-up-vms.yml operations/use-bionic-stemcell.yml((additional-ops-files))"
+            # - Optional
+            # - List of operations files to be applied to the manifest
+            # - Quoted and space-separated
+            # - Ops will be applied in the order they're listed
+            # - Paths are relative to root of the `ops-files` input
+
+            VARS_FILES: "artifactory-credentials.yml"
+            # - Optional
+            # - List of variable files to be applied to the manifest
+            # - Quoted and space-separated
+            # - Variable files will be applied in the order they're listed
+            # - Paths are relative to root of the `vars-files` input
+
+            REGENERATE_CREDENTIALS: false
+            # - Optional
+            # - Delete credentials associated with this deployment from CredHub
+            # - This allows the credentials to be freshly generated each time
+            # - This is helpful for testing changes around variable generation
+            # - Works well with fresh deployments
+            # - Upgrade deployments are not expected to work with total cred rotation
+
+            # Uptimer Params
+            # https://github.com/cloudfoundry/uptimer
+            DEPLOY_WITH_UPTIME_MEASUREMENTS: false
+            # - Optional
+            # - This will measure uptime during the bosh deploy task.
+
+            MEASURE_SYSLOG_AVAILABILITY: false
+            # - Optional
+            # - Requires DEPLOY_WITH_UPTIME_MEASUREMENTS to be true.
+            # - This will measure availability of app syslog drain during deployment.
+
+            TCP_DOMAIN:
+            # - Required if MEASURE_SYSLOG_AVAILABILITY is set to true.
+            # - Domain in which to create a tcp route for the syslog availability measurement.
+
+            AVAILABLE_PORT:
+            # - Required if MEASURE_SYSLOG_AVAILABILITY is set to true.
+            # - Available port within the 'reservable_ports' range,
+            # - used to create a tcp route for the syslog availability measurement.
+
+            FAIL_ON_DOWNTIME: false
+            # - Optional
+            # - This will cause the task to fail if you are not using the DEPLOY_WITH_UPTIME_MEASUREMENTS flag
+            # - It will cause the concourse task to fail if you do not have perfect uptime
+
+            APP_PUSHABILITY_THRESHOLD: 0
+            # - Optional
+            # - This sets the maximum number of allowed uptimer failures for app pushability
+            # - The default threshold value of 0 is our working value for cf-deployment, and is likely to be updated
+
+            HTTP_AVAILABILITY_THRESHOLD: 0
+            # - Optional
+            # - This sets the maximum number of allowed uptimer failures for http availability
+            # - The default threshold value of 0 is our working value for cf-deployment, and is likely to be updated
+
+            RECENT_LOGS_THRESHOLD: 0
+            # - Optional
+            # - This sets the maximum number of allowed uptimer failures for recent logs
+            # - The default threshold value of 0 is our working value for cf-deployment, and is likely to be updated
+
+            STREAMING_LOGS_THRESHOLD: 0
+            # - Optional
+            # - This sets the maximum number of allowed uptimer failures for streaming logs
+            # - The default threshold value of 0 is our working value for cf-deployment, and is likely to be updated
+
+            APP_SYSLOG_AVAILABILITY_THRESHOLD: 0
+            # - Optional
+            # - This sets the maximum number of allowed uptimer failures for app syslog availability
+            # - The default threshold value of 0 is our working value for cf-deployment, and is likely to be updated
+
+            USE_SINGLE_APP_INSTANCE: false
+            # - Optional
+            # - Configures uptimer to deploy with a single app instance rather than two.
+            # - This is primarily used by Diego to validate new uptime features.
+
+            BOSH_DEPLOY_ARGS:
+            # - Optional
+            # - Supplies additional arguments to the bosh deploy command
+            # - For example, '--recreate'
+
+            BOSH_LITE: false
+            # - Optional
+            # - Used to determine whether we should upload a warden stemcell
+            # - Boolean
+
+            BBL_JSON_CONFIG:
+            # - Optional
+            # - For if you need a dynamic config for BBL
+
+  - name: bosh-clean-up
+    serial: true
+    plan:
+      - get: cf-deployment-concourse-tasks
+      - get: bbl-state
+        params:
+          unpack: true
+        trigger: true
+      - get: cf-deployment
+        passed:
+          - bosh-deploy
+      - task: bosh-clean-up
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: cloudfoundry/cf-deployment-concourse-tasks
+            version:
+              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+
+          inputs:
+            - name: bbl-state
+            - name: cf-deployment-concourse-tasks  # - This repo
+
+          run:
+            path: echo
+            args: [ "bosh cleanup" ]
+#            path: cf-deployment-concourse-tasks/bosh-cleanup/task
+
+          params:
+            BBL_STATE_DIR: state
+            # - Path to the directory containing the `bbl-state.json` file
+            # - The path is relative to the `bbl-state` input
+            # - If blank or '.', uses `bbl-state` input as the location for bbl state
+            # - If the specified path does not exist, it will be created
+            # - This input and parameter will be ignored if toolsmiths-env is provided
+
+            CLEAN_ALL: true
+            # - Optional
+            # - Boolean determines whether to use `--all` parameter to
+            # - `bosh clean-up`
+
+  - name: run-performance-tests
+    serial: true
+    serial_groups: [bosh-deploy-run-performance-tests]
+    plan:
+      - get: perf-test-repo-source
+      - get: bbl-state
+        params:
+          unpack: true
+        passed:
+          - bosh-deploy
+        trigger: true
+      - get: cf-deployment
+        passed:
+          - bosh-deploy
+      - get: cf-performance-tests
+      - task: run-performance-tests
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: cloudfoundry/cf-deployment-concourse-tasks
+            version:
+              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+          inputs:
+            - name: perf-test-repo-source
+            - name: cf-performance-tests
+            - name: bbl-state
+            - name: cf-deployment
+          run:
+            path: echo
+            args: [ "run perf test" ]
+#            path: perf-test-repo-source/concourse/run-performance-tests
+          params:
+            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
+            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_MESSAGE: "Performance tests results"
+            TEST_RESULTS_FOLDER: "perf-test-repo-source/((test-results-folder))"
+            TEST_SUITE_FOLDER: "((test-suite-folder))"
+#          outputs:
+#            - name: performance-test-results
+#      - put: perf-test-repo-charts TODO How to do this
+#        params:
+#          repository: performance-test-results
+#          rebase: true
+
+
+
+  - name: generate-chart
+    serial: true
+    plan:
+      - get: perf-test-repo-charts
+        passed:
+          - run-performance-tests
+        trigger: true
+      - task: generate-chart
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: python
+          inputs:
+            - name: perf-test-repo-source
+          run:
+            path: echo
+            args: [ "generate chart" ]
+#            path: perf-test-repo-source/concourse/generate-chart
+          params:
+            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
+            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_MESSAGE: "Generated Chart"
+            TEST_RESULTS_FOLDER: "perf-test-repo-source/((test-results-folder))"
+            GENERATED_CHARTS_FOLDER: "perf-test-repo-source/((generated-charts-folder))"
+#          outputs:
+#            - name: generated-chart-output
+#      - put: perf-test-repo TODO
+#        params:
+#          repository: generated-chart-output
+#          rebase: true
+
+  - name: bosh-delete-cf-deployment
+    serial: true
+    serial_groups: [bosh-deploy-run-performance-tests]
+    plan:
+      - get: cf-deployment-concourse-tasks
+      - get: bbl-state
+        params:
+          unpack: true
+      - get: perf-test-repo-source
+        passed:
+          - generate-chart
+        trigger: true
+      - task: bosh-delete-deployments
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: cloudfoundry/cf-deployment-concourse-tasks
+            version:
+              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+
+          inputs:
+            - name: bbl-state  # - The S3 bucket containing bbl state
+            - name: cf-deployment-concourse-tasks  # - This repo
+
+          run:
+            path: echo
+            args: [ "bosh delete deployment" ]
+#            path: cf-deployment-concourse-tasks/bosh-delete-deployment/task
+
+          params:
+            BBL_STATE_DIR: state
+            # - Path to the directory containing the `bbl-state.json` file
+            # - The path is relative to the `bbl-state` input
+            # - If blank or '.', uses `bbl-state` input as the location for bbl state
+            # - If the specified path does not exist, it will be created
+            # - This input and parameter will be ignored if toolsmiths-env is provided
+
+            DELETE_ALL_DEPLOYMENTS: false
+            # - Optional
+            # - When true, deletes ALL BOSH deployments
+
+            DEPLOYMENT_NAME: cf
+
+            IGNORE_ERRORS: false
+            # - Optional
+            # - When true, passes the `--force` flag to the delete-deployment BOSH command
+
+            BBL_JSON_CONFIG:
+            # - Optional
+            # - For if you need a dynamic config for BBL
+
+  - name: promote
+    serial: true
+    plan:
+      - in_parallel:
+          - get: perf-test-repo-source
+            trigger: true
+            passed:
+              - bosh-delete-cf-deployment
+      - try:
+          do:
+            - put: perf-test-repo-target
+              params:
+                repository: perf-test-repo-source
+                force: true
+            - set_pipeline: self
+              file: concourse/deploy-cf-perftest-rerun.yml
+              var_files:
+                - perf-test-repo-source/rerun-vars/((cf-d.target)).yml
