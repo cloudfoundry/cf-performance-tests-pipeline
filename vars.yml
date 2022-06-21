@@ -1,0 +1,7 @@
+SYSTEM_DOMAIN: cf.cfperftest.bndl.sapcloud.io
+BBL_STATE_BUCKET_NAME: cf-perf-test-state
+TEST_RESULTS_FOLDER: test-results-rerun
+GENERATED_CHARTS_FOLDER: test-charts-rerun
+#  TEST_SUITE_FOLDER:
+#
+#  ADDITIONAL_OPS_FILES:

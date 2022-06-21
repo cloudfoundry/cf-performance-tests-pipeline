@@ -8,31 +8,31 @@ resources:
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-      username: ((github-serviceuser-username))
-      password: ((github-serviceuser-token))
+      username: ((cf-perf-github-username))
+      password: ((cf-perf-github-user-token))
       branch: ((cf-d.source)) # required for "put"
   - name: perf-test-repo-target
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-      username: ((github-serviceuser-username))
-      password: ((github-serviceuser-token))
+      username: ((cf-perf-github-username))
+      password: ((cf-perf-github-user-token))
       branch: ((cf-d.target)) # required for "put"
-#  - name: perf-test-repo-charts
+#  - name: perf-test-repo-results
 #    type: git
 #    source:
 #      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
 #      username: ((github-serviceuser-username))
 #      password: ((github-serviceuser-token))
-#      branch: rerun-charts # required for "put"
+#      branch: rerun-results # required for "put"
   - name: bbl-state
     type: s3
     source:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: bbl-state.tar.gz
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
   - name: cf-deployment
     type: git
     source:
@@ -43,16 +43,16 @@ resources:
     source:
       branch: main
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-      username: ((github-serviceuser-username))
-      password: ((github-serviceuser-token))
+      username: ((cf-perf-github-username))
+      password: ((cf-perf-github-user-token))
   - name: vars-files
     type: s3
     source:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: artifactory-credentials.yml
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
   - name: cf-performance-tests
     type: git
     source:
@@ -64,19 +64,10 @@ resources:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: lb_certificate.tar.gz
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
 
 jobs:
-  - name: set-pipeline
-    serial: true
-    plan:
-      - get: perf-test-repo-source
-        trigger: true
-      - set_pipeline: self
-        file: perf-test-repo-source/concourse/deploy-cf-perftest-rerun.yml
-        var_files:
-          - perf-test-repo-source/rerun-vars/((cf-d.source)).yml
   - name: bbl-up
     serial: true
     plan:
@@ -120,8 +111,8 @@ jobs:
           params:
             # AWS Configuration Params
             # - Required for AWS
-            BBL_AWS_ACCESS_KEY_ID: ((aws-access-key-id))
-            BBL_AWS_SECRET_ACCESS_KEY: ((aws-access-key-secret))
+            BBL_AWS_ACCESS_KEY_ID: ((cf-perf-aws-access-key-id))
+            BBL_AWS_SECRET_ACCESS_KEY: ((cf-perf-aws-access-key-secret))
             BBL_AWS_REGION: eu-central-1
 
             # Azure Configuration Params
@@ -470,8 +461,8 @@ jobs:
             args: [ "run perf test" ]
 #            path: perf-test-repo-source/concourse/run-performance-tests
           params:
-            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
-            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
+            GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Performance tests results"
             TEST_RESULTS_FOLDER: "perf-test-repo-source/((test-results-folder))"
             TEST_SUITE_FOLDER: "((test-suite-folder))"
@@ -505,8 +496,8 @@ jobs:
             args: [ "generate chart" ]
 #            path: perf-test-repo-source/concourse/generate-chart
           params:
-            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
-            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
+            GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Generated Chart"
             TEST_RESULTS_FOLDER: "perf-test-repo-source/((test-results-folder))"
             GENERATED_CHARTS_FOLDER: "perf-test-repo-source/((generated-charts-folder))"
@@ -584,7 +575,7 @@ jobs:
               params:
                 repository: perf-test-repo-source
                 force: true
-            - set_pipeline: self
+            - set_pipeline: cf-perf-test-((cf-d.target))
               file: perf-test-repo-source/concourse/deploy-cf-perftest-rerun.yml
               var_files:
                 - perf-test-repo-source/rerun-vars/((cf-d.target)).yml
