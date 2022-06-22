@@ -1,5 +1,0 @@
----
-cf-d:
-  source: v17.0.0
-  target: v17.1.0
-has-follow-up: true

@@ -24,13 +24,13 @@ resources:
       username: ((cf-perf-github-username))
       password: ((cf-perf-github-user-token))
       branch: ((cf-d.target)) # required for "put"
-#  - name: perf-test-repo-results
-#    type: git
-#    source:
-#      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-#      username: ((github-serviceuser-username))
-#      password: ((github-serviceuser-token))
-#      branch: rerun-results # required for "put"
+  - name: perf-test-repo
+    type: git
+    source:
+      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
+      username: ((github-serviceuser-username))
+      password: ((github-serviceuser-token))
+      branch: cf-d-rerun-results # required for "put"
   - name: bbl-state
     type: s3
     source:
@@ -276,9 +276,7 @@ jobs:
             - name: cf-deployment-concourse-tasks  # - This repo
 
           run:
-            path: echo
-            args: [ "bosh deploy" ]
-#            path: cf-deployment-concourse-tasks/bosh-deploy/task
+            path: cf-deployment-concourse-tasks/bosh-deploy/task
 
           params:
             BBL_STATE_DIR: state
@@ -297,7 +295,7 @@ jobs:
             # - Required unless toolsmiths-env optional input is provided
             # - CF system base domain e.g. `my-cf.com`
 
-            OPS_FILES: "operations/use-postgres.yml operations/scale-up-vms.yml operations/use-bionic-stemcell.yml((additional-ops-files))"
+            OPS_FILES: "operations/use-postgres.yml operations/scale-up-vms.yml operations/use-bionic-stemcell.yml((additional-ops-files))((cf-d.additional-ops-files))"
             # - Optional
             # - List of operations files to be applied to the manifest
             # - Quoted and space-separated
@@ -414,9 +412,7 @@ jobs:
             - name: cf-deployment-concourse-tasks  # - This repo
 
           run:
-            path: echo
-            args: [ "bosh cleanup" ]
-#            path: cf-deployment-concourse-tasks/bosh-cleanup/task
+            path: cf-deployment-concourse-tasks/bosh-cleanup/task
 
           params:
             BBL_STATE_DIR: state
@@ -436,6 +432,7 @@ jobs:
     serial_groups: [bosh-deploy-run-performance-tests]
     plan:
       - get: perf-test-repo-source
+      - get: perf-test-repo
       - get: bbl-state
         params:
           unpack: true
@@ -456,26 +453,24 @@ jobs:
             version:
               digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
           inputs:
-            - name: perf-test-repo-source
+            - name: perf-test-repo
             - name: cf-performance-tests
             - name: bbl-state
             - name: cf-deployment
           run:
-            path: echo
-            args: [ "run perf test" ]
-#            path: perf-test-repo-source/concourse/run-performance-tests
+            path: perf-test-repo/concourse/run-performance-tests
           params:
             GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
             GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Performance tests results"
-            TEST_RESULTS_FOLDER: "perf-test-repo-source/((test-results-folder))"
+            TEST_RESULTS_FOLDER: "perf-test-repo/((test-results-folder))"
             TEST_SUITE_FOLDER: "((test-suite-folder))"
-#          outputs:
-#            - name: performance-test-results
-#      - put: perf-test-repo-charts TODO How to do this
-#        params:
-#          repository: performance-test-results
-#          rebase: true
+          outputs:
+            - name: performance-test-results
+      - put: perf-test-repo
+        params:
+          repository: performance-test-results
+          rebase: true
 
 
 
@@ -486,6 +481,7 @@ jobs:
         passed:
           - run-performance-tests
         trigger: true
+      - get: perf-test-repo
       - task: generate-chart
         config:
           platform: linux
@@ -494,23 +490,21 @@ jobs:
             source:
               repository: python
           inputs:
-            - name: perf-test-repo-source
+            - name: perf-test-repo
           run:
-            path: echo
-            args: [ "generate chart" ]
-#            path: perf-test-repo-source/concourse/generate-chart
+            path: perf-test-repo/concourse/generate-chart
           params:
             GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
             GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Generated Chart"
-            TEST_RESULTS_FOLDER: "perf-test-repo-source/((test-results-folder))"
+            TEST_RESULTS_FOLDER: "perf-test-repo/((test-results-folder))"
             GENERATED_CHARTS_FOLDER: "perf-test-repo-source/((generated-charts-folder))"
-#          outputs:
-#            - name: generated-chart-output
-#      - put: perf-test-repo TODO
-#        params:
-#          repository: generated-chart-output
-#          rebase: true
+          outputs:
+            - name: generated-chart-output
+      - put: perf-test-repo
+        params:
+          repository: generated-chart-output
+          rebase: true
 
   - name: bosh-delete-cf-deployment
     serial: true
@@ -539,9 +533,7 @@ jobs:
             - name: cf-deployment-concourse-tasks  # - This repo
 
           run:
-            path: echo
-            args: [ "bosh delete deployment" ]
-#            path: cf-deployment-concourse-tasks/bosh-delete-deployment/task
+            path: cf-deployment-concourse-tasks/bosh-delete-deployment/task
 
           params:
             BBL_STATE_DIR: state
@@ -578,7 +570,7 @@ jobs:
           do:
             - task: toggle
               file: eb-tasks/toggle/task.yml
-              params: { TOGGLE: ((has-follow-up)) }
+              params: { TOGGLE: ((cf-d.has-follow-up)) }
             - put: perf-test-repo-target
               params:
                 repository: perf-test-repo-source
@@ -586,5 +578,5 @@ jobs:
             - set_pipeline: cf-perf-test-((cf-d.target))
               file: perf-test-repo-source/concourse/deploy-cf-perftest-rerun.yml
               var_files:
-                - perf-test-repo-source/vars.yml
-                - perf-test-repo-source/rerun-vars/((cf-d.target)).yml
+                - perf-test-repo-source/variables/vars-cf-perf-common.yml
+                - perf-test-repo-source/variables/cf-d-rerun/((cf-d.target)).yml
