@@ -4,6 +4,12 @@ resources:
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-deployment-concourse-tasks.git
+  - name: eb-tasks
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/EngineerBetter/concourse-tasks.git
+      branch: main
   - name: perf-test-repo-source
     type: git
     source:
@@ -104,9 +110,7 @@ jobs:
           # - This output _must_ be persisted for these tasks to function properly
 
           run:
-            path: echo
-            args: [ "BBL UP" ]
-#            path: cf-deployment-concourse-tasks/bbl-up/task
+            path: cf-deployment-concourse-tasks/bbl-up/task
 
           params:
             # AWS Configuration Params
@@ -235,10 +239,10 @@ jobs:
             # - bbl will replace them on its next operation
             # - Set this to `false` to keep these plugins
 
-#        ensure:
-#          put: bbl-state
-#          params:
-#            file: updated-bbl-state/bbl-state.tgz
+        ensure:
+          put: bbl-state
+          params:
+            file: updated-bbl-state/bbl-state.tgz
 
   - name: bosh-deploy
     serial: true
@@ -561,7 +565,7 @@ jobs:
             # - Optional
             # - For if you need a dynamic config for BBL
 
-  - name: promote
+  - name: set-next-pipeline-((cf-d.target))
     serial: true
     plan:
       - in_parallel:
@@ -569,8 +573,12 @@ jobs:
             trigger: true
             passed:
               - bosh-delete-cf-deployment
+          - get: eb-tasks
       - try:
           do:
+            - task: toggle
+              file: eb-tasks/toggle/task.yml
+              params: { TOGGLE: ((has-follow-up)) }
             - put: perf-test-repo-target
               params:
                 repository: perf-test-repo-source
@@ -578,4 +586,5 @@ jobs:
             - set_pipeline: cf-perf-test-((cf-d.target))
               file: perf-test-repo-source/concourse/deploy-cf-perftest-rerun.yml
               var_files:
+                - perf-test-repo-source/vars.yml
                 - perf-test-repo-source/rerun-vars/((cf-d.target)).yml
