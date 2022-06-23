@@ -1,5 +1,6 @@
 cf-d:
   additional-ops-files: ''
+  cf-d-concourse-tasks: main
   has-follow-up: true
   source: v17.1.0
   target: v18.0.0

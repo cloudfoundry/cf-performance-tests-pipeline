@@ -55,6 +55,8 @@ if __name__ == '__main__':
 
     for idx, elm in enumerate(cf_d_versions):
         source = f'v{elm}'
+        additional_ops_files = ''
+        cf_d_concourse_tasks = 'main'
 
         if idx != len(cf_d_versions)-1:
             target = f'v{cf_d_versions[idx+1]}'
@@ -66,12 +68,16 @@ if __name__ == '__main__':
         if int(elm.split('.')[0]) >= 20:
             additional_ops_files = f' operations/speed-up-dynamic-asgs.yml'
 
+        if int(elm.split('.')[0]) == 16:
+            cf_d_concourse_tasks = '7453e1c1779b3c9be53bcad58241f9c4e2231806'
+
         vars_dict = {
             "cf-d": {
                 "source": source,
                 "target": target,
                 "has-follow-up": has_follow_up,
-                "additional-ops-files": additional_ops_files
+                "additional-ops-files": additional_ops_files,
+                "cf-d-concourse-tasks": cf_d_concourse_tasks,
             }
         }
 
