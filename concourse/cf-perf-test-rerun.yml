@@ -28,8 +28,8 @@ resources:
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-      username: ((github-serviceuser-username))
-      password: ((github-serviceuser-token))
+      username: ((cf-perf-github-username))
+      password: ((cf-perf-github-user-token))
       branch: cf-d-rerun-results # required for "put"
   - name: bbl-state
     type: s3
