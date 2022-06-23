@@ -56,7 +56,6 @@ if __name__ == '__main__':
     for idx, elm in enumerate(cf_d_versions):
         source = f'v{elm}'
         additional_ops_files = ''
-        cf_d_concourse_tasks = 'main'
 
         if idx != len(cf_d_versions)-1:
             target = f'v{cf_d_versions[idx+1]}'
@@ -65,11 +64,12 @@ if __name__ == '__main__':
             target = None
             has_follow_up = False
 
-        if int(elm.split('.')[0]) >= 20:
-            additional_ops_files = f' operations/speed-up-dynamic-asgs.yml'
+        split_version_num = elm.split('.')
 
-        if int(elm.split('.')[0]) == 16:
-            cf_d_concourse_tasks = 'v12.4.0'
+        if int(split_version_num[0]) >= 20:
+            additional_ops_files = f' operations/speed-up-dynamic-asgs.yml'
+        elif int(split_version_num[0]) == 16 and int(split_version_num[1]) <= 14:
+            additional_ops_files = f' operations/use-bionic-stemcell-for-addons.yml'
 
         vars_dict = {
             "cf-d": {
@@ -77,7 +77,6 @@ if __name__ == '__main__':
                 "target": target,
                 "has-follow-up": has_follow_up,
                 "additional-ops-files": additional_ops_files,
-                "cf-d-concourse-tasks": cf_d_concourse_tasks,
             }
         }
 

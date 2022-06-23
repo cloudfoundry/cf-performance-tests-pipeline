@@ -4,7 +4,6 @@ resources:
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-deployment-concourse-tasks.git
-      branch: ((cf-d.cf-d-concourse-tasks))
   - name: eb-tasks
     type: git
     icon: github

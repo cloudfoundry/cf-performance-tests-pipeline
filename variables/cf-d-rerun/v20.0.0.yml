@@ -1,6 +1,5 @@
 cf-d:
   additional-ops-files: ' operations/speed-up-dynamic-asgs.yml'
-  cf-d-concourse-tasks: main
   has-follow-up: true
   source: v20.0.0
   target: v20.1.0
