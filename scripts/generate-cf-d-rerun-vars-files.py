@@ -69,7 +69,7 @@ if __name__ == '__main__':
             additional_ops_files = f' operations/speed-up-dynamic-asgs.yml'
 
         if int(elm.split('.')[0]) == 16:
-            cf_d_concourse_tasks = '7453e1c1779b3c9be53bcad58241f9c4e2231806'
+            cf_d_concourse_tasks = 'v12.4.0'
 
         vars_dict = {
             "cf-d": {
