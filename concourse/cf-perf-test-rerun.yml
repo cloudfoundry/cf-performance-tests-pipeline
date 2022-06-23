@@ -47,7 +47,7 @@ resources:
   - name: ops-files
     type: git
     source:
-      branch: main
+      branch: ((cf-d.source))
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
       username: ((cf-perf-github-username))
       password: ((cf-perf-github-user-token))
