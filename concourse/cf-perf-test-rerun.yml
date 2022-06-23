@@ -431,7 +431,6 @@ jobs:
     serial: true
     serial_groups: [bosh-deploy-run-performance-tests]
     plan:
-      - get: perf-test-repo-source
       - get: perf-test-repo
       - get: bbl-state
         params:
@@ -442,6 +441,7 @@ jobs:
       - get: cf-deployment
         passed:
           - bosh-deploy
+        trigger: true
       - get: cf-performance-tests
       - task: run-performance-tests
         config:
@@ -477,11 +477,10 @@ jobs:
   - name: generate-chart
     serial: true
     plan:
-      - get: perf-test-repo-source
+      - get: perf-test-repo
         passed:
           - run-performance-tests
         trigger: true
-      - get: perf-test-repo
       - task: generate-chart
         config:
           platform: linux
@@ -498,7 +497,7 @@ jobs:
             GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Generated Chart"
             TEST_RESULTS_FOLDER: "perf-test-repo/((test-results-folder))"
-            GENERATED_CHARTS_FOLDER: "perf-test-repo-source/((generated-charts-folder))"
+            GENERATED_CHARTS_FOLDER: "perf-test-repo/((generated-charts-folder))"
           outputs:
             - name: generated-chart-output
       - put: perf-test-repo
@@ -514,10 +513,11 @@ jobs:
       - get: bbl-state
         params:
           unpack: true
-      - get: perf-test-repo-source
+      - get: perf-test-repo
         passed:
           - generate-chart
         trigger: true
+      - get: perf-test-repo-source
       - task: bosh-delete-deployments
         config:
           platform: linux
