@@ -259,6 +259,7 @@ jobs:
       - get: ops-files
       - get: vars-files
       - task: bosh-deploy
+        attempts: 3
         config:
           platform: linux
           image_resource:
