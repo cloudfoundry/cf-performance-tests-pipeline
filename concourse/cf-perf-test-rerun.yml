@@ -576,7 +576,7 @@ jobs:
                 repository: perf-test-repo-source
                 force: true
             - set_pipeline: cf-perf-test-((cf-d.target))
-              file: perf-test-repo-source/concourse/deploy-cf-perftest-rerun.yml
+              file: perf-test-repo-source/concourse/cf-perf-test-rerun.yml
               var_files:
                 - perf-test-repo-source/variables/vars-cf-perf-common.yml
                 - perf-test-repo-source/variables/cf-d-rerun/((cf-d.target)).yml
