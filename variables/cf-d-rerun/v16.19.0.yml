@@ -1,5 +1,0 @@
-cf-d:
-  additional-ops-files: ''
-  has-follow-up: true
-  source: v16.19.0
-  target: v16.20.0

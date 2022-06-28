@@ -15,17 +15,17 @@ resources:
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-      username: ((github-serviceuser-username))
-      password: ((github-serviceuser-token))
-      branch: main # required for "put"
+      username: ((cf-perf-github-username))
+      password: ((cf-perf-github-user-token))
+      branch: ((results-branch)) # required for "put"
   - name: bbl-state
     type: s3
     source:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: bbl-state.tar.gz
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
   - name: cf-deployment
     type: git
     source:
@@ -36,16 +36,16 @@ resources:
     source:
       branch: main
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-      username: ((github-serviceuser-username))
-      password: ((github-serviceuser-token))
+      username: ((cf-perf-github-username))
+      password: ((cf-perf-github-user-token))
   - name: vars-files
     type: s3
     source:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: artifactory-credentials.yml
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
   - name: cf-performance-tests
     type: git
     source:
@@ -61,20 +61,20 @@ resources:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: integration_config.json
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
   - name: lb-certificate
     type: s3
     source:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: lb_certificate.tar.gz
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
   - name: slack-notification
     type: slack-alert
     source:
-      url: ((slack-notification-url))
+      url: ((cf-perf-slack-notification-url))
 
 jobs:
   - name: bbl-up
@@ -117,8 +117,8 @@ jobs:
           params:
             # AWS Configuration Params
             # - Required for AWS
-            BBL_AWS_ACCESS_KEY_ID: ((aws-access-key-id))
-            BBL_AWS_SECRET_ACCESS_KEY: ((aws-access-key-secret))
+            BBL_AWS_ACCESS_KEY_ID: ((cf-perf-aws-access-key-id))
+            BBL_AWS_SECRET_ACCESS_KEY: ((cf-perf-aws-access-key-secret))
             BBL_AWS_REGION: eu-central-1
 
             # Azure Configuration Params
@@ -472,8 +472,8 @@ jobs:
           run:
             path: perf-test-repo/concourse/run-performance-tests
           params:
-            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
-            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
+            GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Performance tests results"
             TEST_RESULTS_FOLDER: "perf-test-repo/((test-results-folder))"
             TEST_SUITE_FOLDER: "((test-suite-folder))"
@@ -509,8 +509,8 @@ jobs:
           run:
             path: perf-test-repo/concourse/generate-chart
           params:
-            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
-            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
+            GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Generated Chart"
             TEST_RESULTS_FOLDER: "perf-test-repo/((test-results-folder))"
             GENERATED_CHARTS_FOLDER: "perf-test-repo/((generated-charts-folder))"

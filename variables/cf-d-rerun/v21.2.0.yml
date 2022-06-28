@@ -1,5 +1,0 @@
-cf-d:
-  additional-ops-files: ' operations/speed-up-dynamic-asgs.yml'
-  has-follow-up: false
-  source: v21.2.0
-  target: null

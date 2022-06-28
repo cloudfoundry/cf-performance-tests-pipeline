@@ -1,6 +1,7 @@
 system-domain: cf.cfperftest.bndl.sapcloud.io
 bbl-state-bucket-name: cf-perf-test-state
-test-results-folder: test-results-cf-d-rerun
-generated-charts-folder: test-charts-cf-d-rerun
+test-results-folder: test-results
+generated-charts-folder: test-charts
+results-branch: main
 test-suite-folder: ""
 additional-ops-files: ""

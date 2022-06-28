@@ -1,0 +1,10 @@
+system-domain: cf.goperftest.bndl.sapcloud.io
+bbl-state-bucket-name: go-perf-test-state
+test-results-folder: test-results-go-cc
+generated-charts-folder: test-charts-go-cc
+results-branch: main
+
+# use for selecting a subset of tests, e.g. "security_groups"
+# leave empty to run all tests
+test-suite-folder: ""
+additional-ops-files: " operations/deploy-go-cf-api.ym"

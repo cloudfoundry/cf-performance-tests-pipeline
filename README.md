@@ -24,80 +24,72 @@ Several types of chart data will be generated:
 4. Simplified with most recent runs: same as 3, only contains the last 15 runs.
 
 ## General information
-The AWS account and domain used to host the BBL and CF foundation is currently owned by SAP. It might move to a community owned account in the future. A discription of how this was set up can be found [here](docs/manual-setup.md).
+The AWS account and domain used to host the BBL and CF foundation is currently owned by SAP. It might move to a community owned account in the future. A description of how this was set up can be found [here](docs/manual-setup.md).
 
 ## Automatic Setup / Destruction
 
 There are two Concourse pipelines for the automatic deployment and destruction of a CF foundation. Log on to Concourse with the "fly" CLI and upload the pipelines. The "cf-perf-test" variables configure the pipelines for the default CF deployment. The "go-perf-test" variables are for the CF deployment with the new go-cf-api reimplementation.
 
-**NOTE**: The credentials which are required below are currently only available to SAP employees.
+**NOTE**: The credentials which are referenced in the pipeline yaml are stored in Concourse Credhub (and SAP internal).
+
+### CF Performance Tests Pipeline
+
+#### Deploy-Pipeline
+```bash
+fly -t <target> set-pipeline -p deploy-cf-performance-test
+  --load-vars-from=variables/vars-cf-perf-common.yml \
+  -c ./concourse/deploy-cf-perftest.yml
+```
+#### Destroy-Pipeline
 
 ```bash
-# "cf.cfperftest.bndl.sapcloud.io" or "cf.goperftest.bndl.sapcloud.io"
-SYSTEM_DOMAIN=<domain>
-
-# find those in vault
-# aws/cf-perf-test-state-bucket-user or aws/go-perf-test-state-bucket-user
-read -s BBL_STATE_BUCKET_KEY_ID
-read -s BBL_STATE_BUCKET_KEY_SECRET
-
-# "cf-perf-test-state" or "go-perf-test-state"
-BBL_STATE_BUCKET_NAME=<bucket name>
-# "" for default CF deployment or " operations/deploy-go-cf-api.yml" for CF with go cf api
-ADDITIONAL_OPS_FILES=""
-
-# use "test-results-go-cc" for CF with go-cf-api
-TEST_RESULTS_FOLDER=test-results
-# use "test-charts-go-cc" for CF with go-cf-api
-GENERATED_CHARTS_FOLDER=test-charts
-
-# use for selecting a subset of tests, e.g. "security_groups"
-# leave empty to run all tests
-TEST_SUITE_FOLDER=
-
-# find those in vault
-# github_com/bosh-ci-serviceuser
-read -s GITHUB_USER
-read -s GITHUB_EMAIL
-read -s GITHUB_TOKEN
-
-# find those in vault
-# aws/iaas-provider_bootstrap-cfperftest or aws/iaas-provider_bootstrap-goperftest
-read -s AWS_KEY_ID
-read -s AWS_KEY_SECRET
-
-read -s SLACK_URL
-
-# pipeline name: "deploy-cf-performance-test" or "deploy-go-performance-test"
-fly -t <target> set-pipeline -p <pipeline name> \
--v system-domain=$SYSTEM_DOMAIN \
--v additional-ops-files="$ADDITIONAL_OPS_FILES" \
--v bbl-state-bucket-access-key-id=$BBL_STATE_BUCKET_KEY_ID \
--v bbl-state-bucket-access-key-secret=$BBL_STATE_BUCKET_KEY_SECRET \
--v bbl-state-bucket-name=$BBL_STATE_BUCKET_NAME \
--v test-results-folder=$TEST_RESULTS_FOLDER \
--v generated-charts-folder=$GENERATED_CHARTS_FOLDER \
--v test-suite-folder=$TEST_SUITE_FOLDER \
--v github-serviceuser-username=$GITHUB_USER \
--v github-serviceuser-token=$GITHUB_TOKEN \
--v github-serviceuser-email=$GITHUB_EMAIL \
--v aws-access-key-id=$AWS_KEY_ID \
--v aws-access-key-secret=$AWS_KEY_SECRET \
--v slack-notification-url=$SLACK_URL \
--c ./concourse/deploy-cf-perftest.yml
-
-# pipeline name: "destroy-cf-performance-test" or "destroy-go-performance-test"
-fly -t <target> set-pipeline -p <pipeline name> \
--v bbl-state-bucket-access-key-id=$BBL_STATE_BUCKET_KEY_ID \
--v bbl-state-bucket-access-key-secret=$BBL_STATE_BUCKET_KEY_SECRET \
--v bbl-state-bucket-name=$BBL_STATE_BUCKET_NAME \
--v github-serviceuser-username=$GITHUB_USER \
--v github-serviceuser-token=$GITHUB_TOKEN \
--v github-serviceuser-email=$GITHUB_EMAIL \
--v aws-access-key-id=$AWS_KEY_ID \
--v aws-access-key-secret=$AWS_KEY_SECRET \
--c ./concourse/destroy-cf-perftest.yml
+fly -t <target> set-pipeline -p destroy-cf-performance-test
+  --load-vars-from=variables/vars-cf-perf-common.yml \
+  -c ./concourse/destroy-cf-perftest.yml
 ```
+### Go Performance Tests Pipeline
+
+**Note:** The following variable references in `variables/vars-go-perf-common.yml` need to be replaced:
+- `cf-perf-aws-access-key-secret` with `go-perf-aws-access-key-secret`
+- `cf-perf-aws-access-key-id` with `go-perf-aws-access-key-id`
+- `cf-perf-bbl-state-bucket-access-key-id` with `go-perf-bbl-state-bucket-access-key-id`
+- `cf-perf-bbl-state-bucket-access-key-secret` with `go-perf-bbl-state-bucket-access-key-secret`
+
+#### Deploy-Pipeline
+```bash
+fly -t <target> set-pipeline -p deploy-go-performance-test
+  --load-vars-from=variables/vars-go-perf-common.yml \
+  -c ./concourse/deploy-cf-perftest.yml
+```
+
+#### Destroy-Pipeline
+
+```bash
+fly -t <target> set-pipeline -p destroy-go-performance-test
+  --load-vars-from=variables/vars-cf-perf-common.yml \
+  -c ./concourse/destroy-cf-perftest.yml
+```
+
+
 The deploy pipeline runs `bbl up` followed by a `bosh deploy` for the CF deployment. Then it executes the performance tests and generates visual charts. Test results and charts are automatically uploaded to github. The pipeline also runs the CF Acceptance Tests and finally destroys the "cf" BOSH deployment to save cost.
 
 The destroy pipeline first deletes all BOSH deployments and then runs `bbl destroy` to delete all IaaS resources. Use this only if you want to tear down the complete environment.
+
+
+## Troubleshooting
+### Login to Concourse with `fly`
+```bash
+fly login  -t bosh-cf  -c https://bosh.ci.cloudfoundry.org/ -n cf-controlplane
+```
+
+### Access performance test landscape
+Follow those steps to access the performance test landscape. The landscape is deployed with [bbl](https://github.com/cloudfoundry/bosh-bootloader) 
+- Download state from IaaS account (s3)
+- Unpack state
+- Copy `state` into this repo
+- Setup bbl with `eval "$(bbl print-env)"`
+- `bosh deployments` etc. should work now
+
+### Connect to Concourse Credhub
+
+Run [this script](https://github.com/cloudfoundry/bosh-community-stemcell-ci-infra/blob/main/start-credhub-cli.sh), it requires access to the Bosh-CI Concourse GCP project.

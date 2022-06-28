@@ -10,8 +10,8 @@ resources:
       region_name: eu-central-1
       bucket: ((bbl-state-bucket-name))
       versioned_file: bbl-state.tar.gz
-      access_key_id: ((bbl-state-bucket-access-key-id))
-      secret_access_key: ((bbl-state-bucket-access-key-secret))
+      access_key_id: ((cf-perf-bbl-state-bucket-access-key-id))
+      secret_access_key: ((cf-perf-bbl-state-bucket-access-key-secret))
 
 jobs:
   - name: bosh-delete-deployments
@@ -98,16 +98,16 @@ jobs:
             # - The path is relative to the `bbl-state` input
             # - If blank or '.', uses `bbl-state` input as the location for bbl state
 
-            GIT_COMMIT_EMAIL: "((github-serviceuser-email))"
-            GIT_COMMIT_USERNAME: "((github-serviceuser-username))"
+            GIT_COMMIT_EMAIL: "((cf-perf-github-user-email))"
+            GIT_COMMIT_USERNAME: "((cf-perf-github-username))"
             GIT_COMMIT_MESSAGE: "Update bbl state dir"
             # - Optional
             # - You may choose the git committer username and email address by setting these
 
             # AWS Configuration Params
             # - Required for AWS
-            BBL_AWS_ACCESS_KEY_ID: ((aws-access-key-id))
-            BBL_AWS_SECRET_ACCESS_KEY: ((aws-access-key-secret))
+            BBL_AWS_ACCESS_KEY_ID: ((cf-perf-aws-access-key-id))
+            BBL_AWS_SECRET_ACCESS_KEY: ((cf-perf-aws-access-key-secret))
             BBL_AWS_REGION: eu-central-1
 
             # Azure Configuration Params

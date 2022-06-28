@@ -34,7 +34,7 @@ if __name__ == '__main__':
                      'v21.2.0',]
 
     vars_dir_path = Path(Path.cwd(), "variables")
-    cf_d_rerun_vars_path = Path(vars_dir_path, "cf-d-rerun")
+    cf_d_rerun_vars_path = Path(vars_dir_path, "cf-d-backfill")
 
     # Remove 'v' for sorting
     for idx, elm in enumerate(cf_d_versions):
