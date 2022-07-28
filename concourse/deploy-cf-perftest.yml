@@ -50,7 +50,7 @@ resources:
     type: git
     source:
       uri: https://github.com/cloudfoundry/cf-performance-tests.git
-      branch: main
+      branch: CFP-1806
   - name: cf-acceptance-tests
     type: git
     source:
@@ -98,7 +98,7 @@ jobs:
             source:
               repository: cloudfoundry/cf-deployment-concourse-tasks
             version:
-              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+              digest: sha256:e5a5877fa88caa76b3f8dafe7d15111b295a97506780dfe16cbf1e05a3e4fbad
           inputs:
             - name: cf-deployment-concourse-tasks  # - This repo
             - name: bbl-state  # - The S3 bucket containing bbl state
@@ -274,7 +274,7 @@ jobs:
             source:
               repository: cloudfoundry/cf-deployment-concourse-tasks
             version:
-              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+              digest: sha256:e5a5877fa88caa76b3f8dafe7d15111b295a97506780dfe16cbf1e05a3e4fbad
 
           inputs:
             - name: bbl-state  # - The repo containing the Director's bbl state dir
@@ -303,7 +303,7 @@ jobs:
             # - Required unless toolsmiths-env optional input is provided
             # - CF system base domain e.g. `my-cf.com`
 
-            OPS_FILES: "operations/use-postgres.yml operations/scale-up-vms.yml operations/use-bionic-stemcell.yml((additional-ops-files)) operations/speed-up-dynamic-asgs.yml"
+            OPS_FILES: "operations/use-bionic-stemcell.yml((additional-ops-files)) operations/scale-up-vms.yml operations/speed-up-dynamic-asgs.yml"
             # - Optional
             # - List of operations files to be applied to the manifest
             # - Quoted and space-separated
@@ -417,7 +417,7 @@ jobs:
             source:
               repository: cloudfoundry/cf-deployment-concourse-tasks
             version:
-              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+              digest: sha256:e5a5877fa88caa76b3f8dafe7d15111b295a97506780dfe16cbf1e05a3e4fbad
 
           inputs:
             - name: bbl-state
@@ -463,7 +463,7 @@ jobs:
             source:
               repository: cloudfoundry/cf-deployment-concourse-tasks
             version:
-              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+              digest: sha256:e5a5877fa88caa76b3f8dafe7d15111b295a97506780dfe16cbf1e05a3e4fbad
           inputs:
             - name: perf-test-repo
             - name: cf-performance-tests
@@ -477,6 +477,7 @@ jobs:
             GIT_COMMIT_MESSAGE: "Performance tests results"
             TEST_RESULTS_FOLDER: "perf-test-repo/((test-results-folder))"
             TEST_SUITE_FOLDER: "((test-suite-folder))"
+            DATABASE_TYPE: "((database-type))"
           outputs:
             - name: performance-test-results
         on_failure:
@@ -543,7 +544,7 @@ jobs:
             source:
               repository: cloudfoundry/cf-deployment-concourse-tasks
             version:
-              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+              digest: sha256:e5a5877fa88caa76b3f8dafe7d15111b295a97506780dfe16cbf1e05a3e4fbad
           inputs:
             - name: cf-deployment-concourse-tasks
             - name: cf-acceptance-tests
@@ -614,7 +615,7 @@ jobs:
             source:
               repository: cloudfoundry/cf-deployment-concourse-tasks
             version:
-              digest: sha256:90349a43f1a254d9e458a519fe2d3acc5c655d90ac82a418d009c923df0bcc26
+              digest: sha256:e5a5877fa88caa76b3f8dafe7d15111b295a97506780dfe16cbf1e05a3e4fbad
 
           inputs:
             - name: bbl-state  # - The S3 bucket containing bbl state

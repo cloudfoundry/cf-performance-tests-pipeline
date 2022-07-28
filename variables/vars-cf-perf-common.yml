@@ -4,4 +4,5 @@ test-results-folder: test-results
 generated-charts-folder: test-charts
 results-branch: main
 test-suite-folder: ""
-additional-ops-files: ""
+additional-ops-files: " operations/use-postgres.yml"
+database-type: postgres

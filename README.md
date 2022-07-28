@@ -28,11 +28,25 @@ The AWS account and domain used to host the BBL and CF foundation is currently o
 
 ## Automatic Setup / Destruction
 
-There are two Concourse pipelines for the automatic deployment and destruction of a CF foundation. Log on to Concourse with the "fly" CLI and upload the pipelines. The "cf-perf-test" variables configure the pipelines for the default CF deployment. The "go-perf-test" variables are for the CF deployment with the new go-cf-api reimplementation.
+There are three Concourse pipelines for the automatic deployment and destruction of a CF foundation. Log on to Concourse with the "fly" CLI and upload the pipelines. The "deploy-cf-performance-test" pipeline deploys and tests a default CF deployment. "deploy-cf-mysql-performance-test" uses MySQL as cloud controller database instead of PostgreSQL. The "deploy-go-performance-test" pipeline deploys CF with the new go-cf-api reimplementation.
 
-**NOTE**: The credentials which are referenced in the pipeline yaml are stored in Concourse Credhub (and SAP internal).
+**NOTE**: The credentials which are referenced in the pipeline yaml are stored in Concourse CredHub (and SAP internal).
+
+## CF Performance Tests Pipelines
+
+The deploy pipelines run `bbl up` followed by a `bosh deploy` for the CF deployment. Then they execute the performance tests and generate visual charts. Test results and charts are automatically uploaded to github. The pipelines also run the CF Acceptance Tests and finally destroy the "cf" BOSH deployment to save cost.
+
+The destroy pipelines first delete all BOSH deployments and then run `bbl destroy` to delete all IaaS resources. Use this only if you want to tear down the complete environment.
 
 ### CF Performance Tests Pipeline
+
+Store the following credentials in the Concourse CredHub:
+```
+/concourse/cf-controlplane/cf-perf-aws-access-key-secret
+/concourse/cf-controlplane/cf-perf-aws-access-key-id
+/concourse/cf-controlplane/cf-perf-bbl-state-bucket-access-key-secret
+/concourse/cf-controlplane/cf-perf-bbl-state-bucket-access-key-id
+```
 
 #### Deploy-Pipeline
 ```bash
@@ -41,19 +55,21 @@ fly -t <target> set-pipeline -p deploy-cf-performance-test
   -c ./concourse/deploy-cf-perftest.yml
 ```
 #### Destroy-Pipeline
-
 ```bash
 fly -t <target> set-pipeline -p destroy-cf-performance-test
   --load-vars-from=variables/vars-cf-perf-common.yml \
   -c ./concourse/destroy-cf-perftest.yml
 ```
+
 ### Go Performance Tests Pipeline
 
-**Note:** The following variable references in `variables/vars-go-perf-common.yml` need to be replaced:
-- `cf-perf-aws-access-key-secret` with `go-perf-aws-access-key-secret`
-- `cf-perf-aws-access-key-id` with `go-perf-aws-access-key-id`
-- `cf-perf-bbl-state-bucket-access-key-id` with `go-perf-bbl-state-bucket-access-key-id`
-- `cf-perf-bbl-state-bucket-access-key-secret` with `go-perf-bbl-state-bucket-access-key-secret`
+Store these credentials in the Concourse CredHub:
+```
+/concourse/cf-controlplane/go-perf-aws-access-key-secret
+/concourse/cf-controlplane/go-perf-aws-access-key-id
+/concourse/cf-controlplane/go-perf-bbl-state-bucket-access-key-id
+/concourse/cf-controlplane/go-perf-bbl-state-bucket-access-key-secret
+```
 
 #### Deploy-Pipeline
 ```bash
@@ -63,18 +79,35 @@ fly -t <target> set-pipeline -p deploy-go-performance-test
 ```
 
 #### Destroy-Pipeline
-
 ```bash
 fly -t <target> set-pipeline -p destroy-go-performance-test
   --load-vars-from=variables/vars-cf-perf-common.yml \
   -c ./concourse/destroy-cf-perftest.yml
 ```
 
+### MySQL Performance Tests Pipeline
 
-The deploy pipeline runs `bbl up` followed by a `bosh deploy` for the CF deployment. Then it executes the performance tests and generates visual charts. Test results and charts are automatically uploaded to github. The pipeline also runs the CF Acceptance Tests and finally destroys the "cf" BOSH deployment to save cost.
+Store these credentials in the Concourse CredHub:
+```
+/concourse/cf-controlplane/cf-mysql-perf-bbl-state-bucket-access-key-id
+/concourse/cf-controlplane/cf-mysql-perf-bbl-state-bucket-access-key-secret
+/concourse/cf-controlplane/cf-mysql-perf-aws-access-key-id
+/concourse/cf-controlplane/cf-mysql-perf-aws-access-key-secret
+```
 
-The destroy pipeline first deletes all BOSH deployments and then runs `bbl destroy` to delete all IaaS resources. Use this only if you want to tear down the complete environment.
+#### Deploy-Pipeline
+```bash
+fly -t <target> set-pipeline -p deploy-cf-mysql-performance-test
+  --load-vars-from=variables/vars-cf-mysql-perf-common.yml \
+  -c ./concourse/deploy-cf-perftest.yml
+```
 
+#### Destroy-Pipeline
+```bash
+fly -t <target> set-pipeline -p destroy-cf-mysql-performance-test
+  --load-vars-from=variables/vars-cf-mysql-perf-common.yml \
+  -c ./concourse/destroy-cf-perftest.yml
+```
 
 ## Troubleshooting
 ### Login to Concourse with `fly`
@@ -91,5 +124,15 @@ Follow those steps to access the performance test landscape. The landscape is de
 - `bosh deployments` etc. should work now
 
 ### Connect to Concourse Credhub
-
 Run [this script](https://github.com/cloudfoundry/bosh-community-stemcell-ci-infra/blob/main/start-credhub-cli.sh), it requires access to the Bosh-CI Concourse GCP project.
+
+### Connect to MySQL Database
+If you have deployed CF with MySQL as cloud controller database, you can open a tunnel to the jumpbox and then connect to the database. Initialise bbl as explained above and then run:
+```bash
+ssh -4 -N -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=10" -o "IPQoS=throughput" \
+  -i "$JUMPBOX_PRIVATE_KEY" -L "3306:10.0.16.5:3306" jumpbox@<jumpbox ip from $BOSH_ALL_PROXY> &
+# copy mysql client from "database" vm
+bosh -d cf scp database:/usr/local/bin/mysql .
+./mysql --host=127.0.0.1 --port=3306 --user=cloud_controller cloud_controller --password=<cc_database_password from credhub>
+```
+From the mysql command prompt, you can e.g. use `source db.sql` to read and execute statements from a file.

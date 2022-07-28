@@ -4,7 +4,7 @@ This protocol can be used as a base for creating an automation.
 
 ### Load Balancer Certificate
 
-Create a config file for the certificate:
+Create a folder `lb_certificate` to store all certificate-related files. Create a config file for the certificate:
 ```
 # server_rootCA.csr.cnf
 [req]
@@ -38,6 +38,12 @@ Create a self-signed certificate with:
 openssl req -x509 -sha256 -nodes -out cert.pem -newkey rsa:2048 -keyout key.pem -days 365 -config server_rootCA.csr.cnf -extensions req_ext
 ```
 
+Finally create an archive with the key, certificate and config file:
+```
+tar -czvf lb_certificate.tar.gz lb_certificate
+```
+This archive must be uploaded to the S3 bucket later (see below).
+
 ### Docker Tools Container
 
 The [cf-deployment-concourse-tasks](https://github.com/cloudfoundry/cf-deployment-concourse-tasks) Docker image contains all required CLI tools. Assuming that this repo is cloned into ~/cf/cf-performance-tests-pipeline, start a Docker container with:
@@ -48,9 +54,13 @@ docker run -it -v ~/cf/cf-performance-tests-pipeline:/home/cfperftest cloudfound
 
 ### AWS Account Setup
 
-Create a AWS user with name **iaas-provider_bootstrap-cfperftest** and permissions "AdminsGroup / AdministratorAccess".
+Create a AWS user with name:
 
-Save credentials in a secure place.
+**iaas-provider_bootstrap-cfperftest** -or-
+**iaas-provider_bootstrap-goperftest** -or-
+**iaas-provider_bootstrap-cfperftest-mysql**
+
+and permissions "AdminsGroup / AdministratorAccess". Save credentials in a secure place.
 
 ### BBL Setup
 
@@ -58,6 +68,11 @@ Create a load balancer, the jumpbox and bootstrap-bosh with bbl:
 ```
 bbl --state-dir ./state plan --lb-type cf --lb-domain cf.cfperftest.<your domain> --lb-cert cert.pem --lb-key key.pem --iaas aws --aws-access-key-id <ACCESS_KEY_ID> --aws-secret-access-key <ACCESS_KEY_SECRET> --aws-region eu-central-1
 bbl --debug --state-dir ./state up --aws-access-key-id <ACCESS_KEY_ID> --aws-secret-access-key <ACCESS_KEY_SECRET>
+```
+
+Export the state folder location:
+```
+export BBL_STATE_DIRECTORY=./state
 ```
 
 You should now be able to access the jumpbox and the BOSH director:
@@ -102,7 +117,7 @@ resource "aws_elb" "cf_router_lb" {
 ```
 Place the file in the `state/terraform` folder. The next run of `bbl plan` and `bbl up` will apply the configuration. You can verify the configuration in the AWS console in "EC2" > "Load Balancers" > "bbl-env-<env name>-cf-router-lb" > "Attributes" > "Idle timeout".
 
-### Upload State
+### Upload State and Certificate
 
 Now you must persist the state. As it contains credentials, it cannot be stored in git. Instead, we store it in a S3 bucket with special permissions.
 
@@ -112,7 +127,47 @@ tar -czvf bbl-state.tar.gz state
 ```
 The archive must contain the "state" folder as the top-level content. It should be around 160kb in size. If it is several mb large, it probably contains unnecessary Terraform binaries. In that case, search for a ".terraform" folder with a "plugins" subfolder and remove it. Also make sure you are running the tar command in the Docker container and not locally on a Mac. The Mac "tar" command may add additional meta files which can lead to problems.
 
-Upload the tgz file to the S3 bucket "cf-perf-test-state" or "go-perf-test-state".
+Create the S3 bucket "cf-perf-test-state", "go-perf-test-state" or "cf-perf-test-mysql-state", if not already done. Then upload the state zip file. Also upload the `lb_certificate.tar.gz` archive.
+
+### Create User for Bucket Access
+
+In IAM, create a new user "cf-perf-test-state-bucket-user", "go-perf-test-state-bucket-user" or "cf-mysql-perf-test-state-bucket-user". Attach the following inline policy and name it "cf-perf-test-state-bucket-access", "go-perf-test-state-bucket-access" or "cf-mysql-perf-test-state-bucket-access":
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ListObjectsInBucket",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:ListBucketVersions",
+                "s3:GetBucketVersioning"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<BUCKET NAME>"
+            ]
+        },
+        {
+            "Sid": "AllObjectActions",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObjectVersion",
+                "s3:PutObjectVersionAcl",
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<BUCKET NAME>/*"
+            ]
+        }
+    ]
+}
+```
+
+Store the user credentials in a safe place.
 
 ### DNS Setup
 
@@ -196,6 +251,6 @@ Now use bbl to destroy all infrastructure resources:
 ```
 bbl --debug --state-dir ./state destroy --aws-access-key-id <ACCESS_KEY_ID> --aws-secret-access-key <ACCESS_KEY_SECRET> --aws-region eu-central-1
 ```
-After successful deletion the "state" folder should be empty again and MUST be commited.
+After successful deletion the "state" folder should be empty again and MUST be committed.
 
 Finally, delete the DNS configuration that was created in step [DNS Setup](#dns-setup).

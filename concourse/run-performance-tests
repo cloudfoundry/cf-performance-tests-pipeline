@@ -25,10 +25,27 @@ cf api --skip-ssl-validation "api.$CF_DOMAIN"
 cf auth admin "$CF_ADMIN_PASSWORD"
 cf create-user perf-test-user perf-test-password
 
+if [ -z "${DATABASE_TYPE:-}" ]; then
+  echo "Task parameter 'DATABASE_TYPE' is empty. Falling back to 'postgres'."
+  DATABASE_TYPE="postgres"
+fi
+if [ "${DATABASE_TYPE}" == 'postgres' ]; then
+  DATABASE_PORT=5524
+  DATABASE_CCDB="postgres://cloud_controller:$CCDB_PASSWORD@localhost:$DATABASE_PORT/cloud_controller?sslmode=disable"
+  DATABASE_UAADB="postgres://uaa:$UAADB_PASSWORD@localhost:$DATABASE_PORT/uaa?sslmode=disable"
+elif [ "${DATABASE_TYPE}" == 'mysql' ]; then
+  DATABASE_PORT=3306
+  DATABASE_CCDB="cloud_controller:$CCDB_PASSWORD@tcp(localhost:$DATABASE_PORT)/cloud_controller?multiStatements=true"
+  DATABASE_UAADB="uaa:$UAADB_PASSWORD@tcp(localhost:$DATABASE_PORT)/uaa?multiStatements=true"
+else
+  echo "Task parameter 'DATABASE_TYPE' must be one of 'postgres' or 'mysql' (is: ${DATABASE_TYPE})."
+  exit 1
+fi
+
 echo -e "\nOpening SSH tunnel to CF database..."
 echo "$JUMPBOX_PRIVATE_KEY" > ./jumpbox_private.key
 chmod 0600 ./jumpbox_private.key
-ssh -4 -N -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=10" -o "IPQoS=throughput" -i ./jumpbox_private.key -L 5524:"$DATABASE_IP":5524 jumpbox@"$JUMPBOX_URL" &
+ssh -4 -N -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=10" -o "IPQoS=throughput" -i ./jumpbox_private.key -L "$DATABASE_PORT":"$DATABASE_IP":"$DATABASE_PORT" jumpbox@"$JUMPBOX_URL" &
 SSH_PID=$!
 
 echo -e "\nRunning cf-performance tests..."
@@ -47,8 +64,9 @@ users:
   admin:
     username: "admin"
     password: "$CF_ADMIN_PASSWORD"
-ccdb_connection: "postgres://cloud_controller:$CCDB_PASSWORD@localhost:5524/cloud_controller?sslmode=disable"
-uaadb_connection: "postgres://uaa:$UAADB_PASSWORD@localhost:5524/uaa?sslmode=disable"
+database_type: "$DATABASE_TYPE"
+ccdb_connection: "$DATABASE_CCDB"
+uaadb_connection: "$DATABASE_UAADB"
 samples: 10
 results_folder: "$TEST_RESULTS"
 EOF
