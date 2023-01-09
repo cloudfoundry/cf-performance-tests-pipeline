@@ -6,18 +6,21 @@ import string
 import yaml
 
 if __name__ == '__main__':
-    root_branch_cf_perf_tests_pipeline = "main"
+    root_branch_cf_perf_tests_pipeline = "v23.0.0"
 
     # Can be obtained with `git tag -l | sort -V | sed 's/v//g' | xargs -I {} echo \'{}\'` in `cf-deployment`
     cf_deployment_releases = [
-                              '21.0.0',
-                              '21.1.0',
-                              '21.2.0',
-                              '21.3.0',
-                              '21.4.0',
-                              '21.5.0',
-                              '21.6.0',
-                              '21.7.0',]
+                              '23.0.0',
+                              '23.1.0',
+                              '23.2.0',
+                              '23.3.0',
+                              '23.4.0',
+                              '23.5.0',
+                              '24.0.0',
+                              '24.1.0',
+                              '24.2.0',
+                              '24.3.0',
+                              '24.4.0',]
 
     vars_dir_path = Path(Path.cwd(), "variables")
     cf_d_rerun_vars_path = Path(vars_dir_path, "cf-d-backfill")
