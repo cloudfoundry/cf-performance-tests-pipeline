@@ -1,5 +1,5 @@
 - type: replace
-  path: /releases/-
+  path: /releases/name=capi
   value:
     name: capi
     version: 1.156-index_fix
