@@ -2,6 +2,6 @@
   path: /releases/name=capi
   value:
     name: capi
-    version: 1.156-index_fix
-    url: https://github.com/FloThinksPi-Forks/capi-release/releases/download/test/capi-1.156.0-index_fix.tgz
-    sha1: 357ee0439deee9a130d3d360e8d6cfd446bf6bfd
+    version: 1.156.0-dev1
+    url: https://github.com/johha/capi-release/releases/download/bommel/capi-1.156.0-dev1.tgz
+    sha1: 1305156e69f84a46f87d90851c125dbe8017620f
