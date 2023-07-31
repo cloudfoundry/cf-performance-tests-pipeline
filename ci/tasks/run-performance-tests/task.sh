@@ -59,8 +59,8 @@ pushd "$cf_perf_tests_repo" >/dev/null
   cat << EOF > ./config.yml
 api: "api.${cf_domain}"
 skip_ssl_validation: true
-cf_deployment_version: "$cf_deployment_version"
-capi_version: "$capi_version"
+cf_deployment_version: "${cf_deployment_version}_INDICES"
+capi_version: "${capi_version}_INDICES"
 users:
   admin:
     username: "admin"
@@ -68,7 +68,7 @@ users:
 database_type: "$CCDB"
 ccdb_connection: "$database_ccdb"
 uaadb_connection: "$database_uaadb"
-samples: 10
+samples: 100
 results_folder: "$results_path"
 EOF
   if [ -z "${TEST_SUITE_FOLDER:-}" ]; then
