@@ -279,7 +279,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: cf-vars.yml
-          OPS_FILES: "operations/use-postgres.yml operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
+          OPS_FILES: "operations/use-postgres.yml operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/use-yjit.yml"
       - task: bosh-clean-up
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
@@ -357,7 +357,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: cf-vars.yml
-          OPS_FILES: "operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
+          OPS_FILES: "operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/use-yjit.yml"
       - task: bosh-clean-up
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
