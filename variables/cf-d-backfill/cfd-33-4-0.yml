@@ -1,0 +1,8 @@
+additional-ops-files: ' operations/speed-up-dynamic-asgs.yml'
+cf_deployment_tag_filter: v33.4.0
+cf_perf_tests_pipeline_source_branch: perf-test-old-cfd-33-4-0
+cf_router_idle_timeout_secs: '60'
+cloud_controller_type: rails
+more_tests: true
+next_test_name: cfd-33-5-0
+test_suffix: -iid5
