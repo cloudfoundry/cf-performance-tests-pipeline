@@ -2,5 +2,5 @@ region: eu-west-3
 parent_zone_id: Z221ODT4T41IC2
 parent_zone_domain: bndl.sapcloud.io
 state-bucket-name: cf-performance-tests-new
-results-branch: main
+results-branch: test-destination-tests
 test-suite-folder: ""
