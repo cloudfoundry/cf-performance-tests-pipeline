@@ -21,10 +21,10 @@
     networks:
       - name: default
     stemcell: default
-    vm_type: small
+    vm_type: default
 
 - type: replace
   path: /releases/-
   value:
     name: cf-performance-tests
-    version: 0.1.0-dev05
+    version: latest
