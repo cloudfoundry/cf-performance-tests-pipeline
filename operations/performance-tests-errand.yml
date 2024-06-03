@@ -27,5 +27,6 @@
 - type: replace
   path: /releases/-
   value:
+    url: https://github.com/cloudfoundry/cf-performance-tests-release/releases/latest/download/cf-performance-tests.tgz
     name: cf-performance-tests
     version: latest
