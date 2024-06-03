@@ -136,12 +136,6 @@ resources:
     source:
       uri: https://github.com/cloudfoundry/cf-deployment.git
       tag_filter: v*
-  - name: cf-performance-tests
-    type: git
-    icon: github
-    source:
-      uri: https://github.com/cloudfoundry/cf-performance-tests.git
-      branch: main
   - name: slack-notification
     type: slack-alert
     source:
@@ -246,7 +240,6 @@ jobs:
           passed: [deploy-director]
         - get: base-infra
         - get: concourse-tasks
-        - get: cf-performance-tests
       - load_var: base-infra
         file: base-infra/metadata
         format: json
@@ -346,7 +339,6 @@ jobs:
           passed: [run-perf-tests-postgres]
         - get: base-infra
         - get: concourse-tasks
-        - get: cf-performance-tests
       - load_var: base-infra
         file: base-infra/metadata
         format: json
