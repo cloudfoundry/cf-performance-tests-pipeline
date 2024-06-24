@@ -16,12 +16,13 @@
               username: admin
               password: ((cf_admin_password))
           results_folder: ((results_folder))
+          samples: 10
         release: cf-performance-tests
     lifecycle: errand
     networks:
       - name: default
     stemcell: default
-    vm_type: default
+    vm_type: m5a.large
 
 - type: replace
   path: /releases/-
