@@ -28,4 +28,5 @@
   path: /releases/-
   value:
     name: cf-performance-tests
-    version: 0.1.0-dev14
+    url: https://github.com/cloudfoundry/cf-performance-tests-release/releases/latest/download/cf-performance-tests.tgz
+    version: latest
