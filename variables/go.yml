@@ -1,4 +1,0 @@
-cloud_controller_type: go
-additional-ops-files: " operations/deploy-go-cf-api.yml"
-cf_router_idle_timeout_secs: "60"
-test_suffix: ""

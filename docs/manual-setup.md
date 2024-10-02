@@ -26,7 +26,7 @@ These resources are created by a CloudFormation stack defined in [scripts/bootst
 
 In order to define a test configuration (e.g. with a specific ops file) that will be tested automatically against future releases of cf-deployment, define a variables file in `variables/` with the following structure:
   ```yaml
-  cloud_controller_type: rails #either 'rails' or 'go'
+  cloud_controller_type: rails # only 'rails' supported
   additional-ops-files: " operations/use-postgres.yml" #any bosh operations files required to deploy cf. The single character of whitespace at the beginning is mandatory.
   cf_router_idle_timeout_secs: "60" #adjust as desired to change the router timeout
   test_suffix: "" #optional naming suffix for the test configuration. Must be provided as an empty string if you don't want to use it.

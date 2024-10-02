@@ -71,30 +71,6 @@ jobs:
       GIT_COMMIT_MESSAGE: Generate charts for rails cc with mysql ccdb
       CCDB: mysql
       CLOUD_CONTROLLER_TYPE: rails
-  - task: generate-charts-go-postgres
-    file: cf-performance-tests-pipeline/ci/tasks/generate-charts/task.yml
-    input_mapping:
-      cf-performance-tests-pipeline: results-with-rails-mysql-charts
-    output_mapping:
-      cf-performance-tests-pipeline: results-with-go-postgres-charts
-    params:
-      GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
-      GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
-      GIT_COMMIT_MESSAGE: Generate charts for go cc with postgres ccdb
-      CCDB: postgres
-      CLOUD_CONTROLLER_TYPE: go
-  - task: generate-charts-go-mysql
-    file: cf-performance-tests-pipeline/ci/tasks/generate-charts/task.yml
-    input_mapping:
-      cf-performance-tests-pipeline: results-with-go-postgres-charts
-    output_mapping:
-      cf-performance-tests-pipeline: results-with-all-charts
-    params:
-      GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
-      GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
-      GIT_COMMIT_MESSAGE: Generate charts for go cc with mysql ccdb
-      CCDB: mysql
-      CLOUD_CONTROLLER_TYPE: go
   - put: cf-performance-tests-pipeline-push
     params:
       repository: results-with-all-charts

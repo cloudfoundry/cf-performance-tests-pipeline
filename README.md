@@ -1,7 +1,5 @@
 # CF Performance Tests Pipeline
 
-Bommel
-
 This repository defines a Concourse pipeline that automatically runs the [cf-performance-tests](https://github.com/cloudfoundry/cf-performance-tests) against new releases of [cf-deployment](https://github.com/cloudfoundry/cf-deployment) and stores the [results](results) in this repo. The pipeline also generates .png charts that show how performance varies across different cf-deployment releases. These are regenerated each time a new results file is added, along with a [coverage table](results/coverage.md) that gives an overview of releases that have been tested.
 
 The pipeline is triggered by new cf-deployment releases. It uses [bbl](https://github.com/cloudfoundry/bosh-bootloader) to stand a bosh director, and then uses that director to deploy a Cloud Foundry foundation. Each pipeline run will run the tests twice against a specific release of cf-deployment - once with a Cloud Controller that has a postgres CCDB, and once with a mysql CCDB. After completion, the bbl test environment is torn down.
@@ -14,7 +12,7 @@ Results are stored automatically in the following paths in this repo, according 
 
 ```bash
 results
-├── go #tests that swap in a proof-of-concept Cloud Controller written in go: https://github.com/cloudfoundry/go-cf-api
+├── go #tests that swap in a proof-of-concept Cloud Controller written in go: https://github.com/cloudfoundry/go-cf-api (archived results only)
 │   ├── mysql
 │   │   ├── charts
 │   │   └── results
