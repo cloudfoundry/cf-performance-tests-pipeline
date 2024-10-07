@@ -34,13 +34,13 @@ if __name__ == '__main__':
     rows = []
     for version in unique_cf_d_versions:
         row = { 'version': version }
-        for combo in ('rails-postgres', 'rails-mysql', 'go-postgres', 'go-mysql'):
+        for combo in ('rails-postgres', 'rails-mysql'):
             row[combo] = ':x:'
             for file in filelist:
                 path = pathlib.Path(file)
                 cc_type = str(os.path.basename(Path(file).parents[4]))
-                if 'rails' not in cc_type and 'go' not in cc_type:
-                    raise ValueError(f'expected directory four levels up from results file to be named "rails" or "go" but was {cc_type}')
+                if 'rails' not in cc_type:
+                    raise ValueError(f'expected directory four levels up from results file to be named "rails" but was {cc_type}')
                 ccdb = str(os.path.basename(Path(file).parents[3]))
                 if 'postgres' not in ccdb and 'mysql' not in ccdb:
                     raise ValueError(f'expected directory three levels up from results file to be named "postgres" or "mysql" but was {ccdb}')
