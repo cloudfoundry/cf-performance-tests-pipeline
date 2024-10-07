@@ -64,7 +64,7 @@ jobs:
     input_mapping:
       cf-performance-tests-pipeline: results-with-rails-postgres-charts
     output_mapping:
-      cf-performance-tests-pipeline: results-with-rails-mysql-charts
+      cf-performance-tests-pipeline: results-with-all-charts
     params:
       GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
       GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
