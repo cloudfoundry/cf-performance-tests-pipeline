@@ -221,7 +221,7 @@ jobs:
         format: json
       - *bbl_up
 
-  - name: run-perf-tests-postgres
+  - name: run-perf-tests-postgres-15
     serial: true
     serial_groups: [deploy-test-destroy]
     <<: *alert_failure
@@ -238,6 +238,107 @@ jobs:
           params:
             unpack: true
           passed: [deploy-director]
+        - get: base-infra
+        - get: concourse-tasks
+      - load_var: base-infra
+        file: base-infra/metadata
+        format: json
+      - in_parallel:
+          - task: combine-ops-file-directories
+            attempts: 3
+            file: concourse-tasks/combine-directories/task.yml
+            input_mapping:
+              src-1: cf-deployment
+              src-2: cf-performance-tests-pipeline
+            params:
+              SRC_1_GLOB: operations/*.yml
+              SRC_2_GLOB: operations/*.yml
+            output_mapping:
+              target: combined-ops-files
+          - task: write-bosh-vars-file
+            attempts: 3
+            file: cf-performance-tests-pipeline/ci/tasks/write-bosh-vars-file/task.yml
+            params:
+              VARS:
+                aws_region: ((region))
+                blobstore_access_key_id: ((.:base-infra.cloud_controller_aws_creds.aws_access_key_id))
+                blobstore_secret_access_key: ((.:base-infra.cloud_controller_aws_creds.aws_secret_access_key))
+                app_package_directory_key: ((.:base-infra.packages_bucket_name))
+                buildpack_directory_key: ((.:base-infra.buildpacks_bucket_name))
+                droplet_directory_key: ((.:base-infra.droplets_bucket_name))
+                resource_directory_key: ((.:base-infra.resources_bucket_name))
+                test-suite-folder: ((test-suite-folder))
+          - task: get-artifacts-versions
+            file: cf-performance-tests-pipeline/ci/tasks/get-artifact-versions/task.yml
+      - task: combine-vars-file-directories
+        attempts: 3
+        file: concourse-tasks/combine-directories/task.yml
+        input_mapping:
+          src-1: cf-vars-file
+          src-2: cf-versions
+        output_mapping:
+          target: combined-vars-files
+      - task: deploy-cf
+        attempts: 3
+        file: cf-deployment-concourse-tasks/bosh-deploy/task.yml
+        input_mapping:
+          ops-files: combined-ops-files
+          vars-files: combined-vars-files
+        params:
+          BBL_STATE_DIR: state
+          MANIFEST_FILE: cf-deployment.yml
+          SYSTEM_DOMAIN: *system_domain
+          VARS_FILES: "cf-vars.yml cf_versions.yml"
+          OPS_FILES: "operations/performance-tests-errand.yml operations/use-postgres.yml operations/use-postgres-15.yml operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
+          BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres15/results/"
+      - task: bosh-clean-up
+        attempts: 3
+        file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
+        params:
+          BBL_STATE_DIR: state
+      - task: run-performance-tests
+        attempts: 3
+        file: cf-deployment-concourse-tasks/run-errand/task.yml
+        params:
+          BBL_STATE_DIR: state
+          DEPLOYMENT_NAME: cf
+          ERRAND_NAME: cf-performance-tests-errand
+          KEEP_ALIVE: true
+      - load_var: cf-versions
+        file: cf-versions/cf_versions.yml
+        format: yaml
+      - task: commit-test-results
+        attempts: 3
+        file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
+        params:
+          BBL_STATE_DIR: state
+          GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
+          GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
+          GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with postgres 15 ccdb
+      - put: results
+        params:
+          repository: cf-performance-tests-pipeline
+          rebase: true
+
+
+
+  - name: run-perf-tests-postgres
+    serial: true
+    serial_groups: [deploy-test-destroy]
+    <<: *alert_failure
+    plan:
+      - in_parallel:
+        - get: cf-performance-tests-pipeline
+          trigger: true
+          passed: [run-perf-tests-postgres-15]
+        - get: cf-deployment
+          trigger: true
+          passed: [run-perf-tests-postgres-15]
+        - get: cf-deployment-concourse-tasks
+        - get: bbl-state
+          params:
+            unpack: true
+          passed: [run-perf-tests-postgres-15]
         - get: base-infra
         - get: concourse-tasks
       - load_var: base-infra

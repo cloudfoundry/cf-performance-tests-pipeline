@@ -47,22 +47,34 @@ jobs:
     passed: [set-pipeline]
   - get: results
     trigger: true
-  - task: generate-charts-rails-postgres
+  - task: generate-charts-rails-postgres-15
     file: cf-performance-tests-pipeline/ci/tasks/generate-charts/task.yml
     input_mapping:
       cf-performance-tests-pipeline: results
     output_mapping:
-      cf-performance-tests-pipeline: results-with-rails-postgres-charts
+      cf-performance-tests-pipeline: results-with-rails-postgres-15-charts
     params:
       GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
       GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
-      GIT_COMMIT_MESSAGE: Generate charts for rails cc with postgres ccdb
+      GIT_COMMIT_MESSAGE: Generate charts for rails cc with postgres 15 ccdb
+      CCDB: postgres15
+      CLOUD_CONTROLLER_TYPE: rails
+  - task: generate-charts-rails-postgres-16
+    file: cf-performance-tests-pipeline/ci/tasks/generate-charts/task.yml
+    input_mapping:
+      cf-performance-tests-pipeline: results-with-rails-postgres-15-charts
+    output_mapping:
+      cf-performance-tests-pipeline: results-with-rails-postgres-15-16-charts
+    params:
+      GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
+      GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
+      GIT_COMMIT_MESSAGE: Generate charts for rails cc with postgres 16 ccdb
       CCDB: postgres
       CLOUD_CONTROLLER_TYPE: rails
   - task: generate-charts-rails-mysql
     file: cf-performance-tests-pipeline/ci/tasks/generate-charts/task.yml
     input_mapping:
-      cf-performance-tests-pipeline: results-with-rails-postgres-charts
+      cf-performance-tests-pipeline: results-with-rails-postgres-15-16-charts
     output_mapping:
       cf-performance-tests-pipeline: results-with-all-charts
     params:
