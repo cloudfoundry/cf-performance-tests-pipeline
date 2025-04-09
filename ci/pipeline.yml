@@ -320,7 +320,7 @@ jobs:
         params:
           repository: cf-performance-tests-pipeline
           rebase: true
-
+      - *delete_cf
   - name: run-perf-tests-postgres
     serial: true
     serial_groups: [deploy-test-destroy]
@@ -419,6 +419,7 @@ jobs:
         params:
           repository: cf-performance-tests-pipeline
           rebase: true
+      - *delete_cf
 
   - name: run-perf-tests-mysql
     serial: true
@@ -518,6 +519,7 @@ jobs:
         params:
           repository: cf-performance-tests-pipeline
           rebase: true
+      - *delete_cf
 
   - name: teardown
     serial: true
