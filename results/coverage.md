@@ -7,6 +7,7 @@
 | v48.5.0   | :x:                | :white_check_mark: | :white_check_mark: |
 | v48.4.0   | :x:                | :white_check_mark: | :white_check_mark: |
 | v48.2.0   | :x:                | :white_check_mark: | :white_check_mark: |
+| v48.10.0  | :white_check_mark: | :white_check_mark: | :x:                |
 | v48.1.0   | :x:                | :white_check_mark: | :white_check_mark: |
 | v48.0.0   | :x:                | :white_check_mark: | :white_check_mark: |
 | v47.1.0   | :x:                | :white_check_mark: | :white_check_mark: |
