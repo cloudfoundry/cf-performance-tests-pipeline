@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-yq --yaml-output <<< "$VARS" > cf-vars-file/cf-vars.yml
+yq -o yaml <<< "$VARS" > cf-vars-file/cf-vars.yml
