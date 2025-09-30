@@ -7,6 +7,7 @@
 | v51.4.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v51.3.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v51.2.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| v51.10.0  | :white_check_mark: | :white_check_mark: | :x:                |
 | v51.1.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v51.0.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v50.4.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
