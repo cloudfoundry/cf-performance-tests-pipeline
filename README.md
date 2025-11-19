@@ -118,3 +118,4 @@ If these manual jobs fail to clean up an environment, you will need to locate th
     1. Download the file, place it in [base-infra/terraform](../base-infra/terraform), and run `terraform init` with whatever version of the terraform CLI matches that used by the latest commit of the [Concourse terraform resource](https://github.com/ljfranklin/terraform-resource) when the pipeline last ran the `base-infra` job. Then `terraform destroy`.
 
 In both cases, the last resort - and this should almost never be necessary - will be to manually delete any remaining resources from AWS
+
