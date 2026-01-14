@@ -289,7 +289,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
-          OPS_FILES: "operations/performance-tests-errand.yml operations/use-postgres.yml operations/use-postgres-15.yml operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
+          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-postgres.yml operations/use-postgres-15.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres15/results/"
       - task: bosh-clean-up
         attempts: 3
@@ -388,7 +388,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
-          OPS_FILES: "operations/performance-tests-errand.yml operations/use-postgres.yml operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
+          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-postgres.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres/results/"
       - task: bosh-clean-up
         attempts: 3
