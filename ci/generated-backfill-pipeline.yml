@@ -8,32 +8,36 @@ anchors:
     ensure:
       attempts: 3
       params:
-        file: updated-bbl-state/bbl-state.tgz
+        rebase: true
+        repository: updated-bbl-state
       put: bbl-state
     file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+    input_mapping:
+      bbl-state: bbl-state
     params:
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_REGION: ((region))
       BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
-      BBL_STATE_DIR: state
-      STORE_BBL_STATE_AS_TARBALL: true
+      BBL_STATE_DIR: perf-tests/bbl-state
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-      TF_VAR_parent_zone_id: ((parent_zone_id))
     task: bbl-destroy
   bbl_state_upload:
     attempts: 3
     params:
-      file: updated-bbl-state/bbl-state.tgz
+      rebase: true
+      repository: updated-bbl-state
     put: bbl-state
   bbl_up:
     ensure:
       attempts: 3
       params:
-        file: updated-bbl-state/bbl-state.tgz
+        rebase: true
+        repository: updated-bbl-state
       put: bbl-state
     file: cf-deployment-concourse-tasks/bbl-up/task.yml
     input_mapping:
       bbl-config: cf-performance-tests-pipeline
+      bbl-state: bbl-state
     params:
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_REGION: ((region))
@@ -43,18 +47,16 @@ anchors:
       BBL_IAAS: aws
       BBL_LB_CERT: ((.:base-infra.cert_pem))
       BBL_LB_KEY: ((.:base-infra.private_key))
-      BBL_STATE_DIR: state
-      LB_DOMAIN: cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      BBL_STATE_DIR: perf-tests/bbl-state
+      LB_DOMAIN: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
       SKIP_LB_CREATION: false
-      STORE_BBL_STATE_AS_TARBALL: true
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-      TF_VAR_parent_zone_id: ((parent_zone_id))
     task: bbl-up
   delete_cf:
     attempts: 3
     file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
       DELETE_ALL_DEPLOYMENTS: true
       IGNORE_ERRORS: true
     task: bosh-delete-deployments
@@ -63,7 +65,7 @@ anchors:
     - attempts: 3
       file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
       params:
-        BBL_STATE_DIR: state
+        BBL_STATE_DIR: perf-tests/bbl-state
         DELETE_ALL_DEPLOYMENTS: true
         IGNORE_ERRORS: true
       task: bosh-delete-deployments
@@ -71,17 +73,18 @@ anchors:
       - ensure:
           attempts: 3
           params:
-            file: updated-bbl-state/bbl-state.tgz
+            rebase: true
+            repository: updated-bbl-state
           put: bbl-state
         file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+        input_mapping:
+          bbl-state: bbl-state
         params:
           BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
           BBL_AWS_REGION: ((region))
           BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
-          BBL_STATE_DIR: state
-          STORE_BBL_STATE_AS_TARBALL: true
+          BBL_STATE_DIR: perf-tests/bbl-state
           TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-          TF_VAR_parent_zone_id: ((parent_zone_id))
         task: bbl-destroy
       - attempts: 3
         get_params:
@@ -103,17 +106,18 @@ anchors:
     - ensure:
         attempts: 3
         params:
-          file: updated-bbl-state/bbl-state.tgz
+          rebase: true
+          repository: updated-bbl-state
         put: bbl-state
       file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+      input_mapping:
+        bbl-state: bbl-state
       params:
         BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
         BBL_AWS_REGION: ((region))
         BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
-        BBL_STATE_DIR: state
-        STORE_BBL_STATE_AS_TARBALL: true
+        BBL_STATE_DIR: perf-tests/bbl-state
         TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-        TF_VAR_parent_zone_id: ((parent_zone_id))
       task: bbl-destroy
     - attempts: 3
       get_params:
@@ -122,12 +126,13 @@ anchors:
         action: destroy
         terraform_source: cf-performance-tests-pipeline/base-infra/terraform
       put: base-infra
-  system_domain: cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+  system_domain: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
 groups:
 - jobs:
   - detect-new-versions
   - create-base-infra
   - deploy-director
+  - run-perf-tests-postgres-15
   - run-perf-tests-postgres
   - run-perf-tests-mysql
   - teardown
@@ -180,9 +185,8 @@ jobs:
       - create-base-infra
       trigger: true
     - get: cf-deployment-concourse-tasks
+    - get: capi-ci
     - get: bbl-state
-      params:
-        unpack: true
     - get: base-infra
   - file: base-infra/metadata
     format: json
@@ -190,11 +194,13 @@ jobs:
   - ensure:
       attempts: 3
       params:
-        file: updated-bbl-state/bbl-state.tgz
+        rebase: true
+        repository: updated-bbl-state
       put: bbl-state
     file: cf-deployment-concourse-tasks/bbl-up/task.yml
     input_mapping:
       bbl-config: cf-performance-tests-pipeline
+      bbl-state: bbl-state
     params:
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_REGION: ((region))
@@ -204,17 +210,26 @@ jobs:
       BBL_IAAS: aws
       BBL_LB_CERT: ((.:base-infra.cert_pem))
       BBL_LB_KEY: ((.:base-infra.private_key))
-      BBL_STATE_DIR: state
-      LB_DOMAIN: cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      BBL_STATE_DIR: perf-tests/bbl-state
+      LB_DOMAIN: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
       SKIP_LB_CREATION: false
-      STORE_BBL_STATE_AS_TARBALL: true
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-      TF_VAR_parent_zone_id: ((parent_zone_id))
     task: bbl-up
+  - attempts: 3
+    file: capi-ci/ci/bbl-tasks/create_dns_record.yml
+    input_mapping:
+      bbl-state: updated-bbl-state
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DNS_DOMAIN: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      GCP_DNS_SERVICE_ACCOUNT_KEY: ((capi-bbl-dns-service-account))
+      GCP_PROJECT_ID: app-runtime-interfaces-wg
+      SHARED_DNS_ZONE_NAME: app-runtime-interfaces
+    task: create-dns-record
   serial: true
   serial_groups:
   - deploy-test-destroy
-- name: run-perf-tests-postgres
+- name: run-perf-tests-postgres-15
   on_failure:
     params:
       alert_type: failed
@@ -231,13 +246,10 @@ jobs:
       trigger: true
     - get: cf-deployment-concourse-tasks
     - get: bbl-state
-      params:
-        unpack: true
       passed:
       - deploy-director
     - get: base-infra
     - get: concourse-tasks
-    - get: cf-performance-tests
   - file: base-infra/metadata
     format: json
     load_var: base-infra
@@ -264,45 +276,183 @@ jobs:
           buildpack_directory_key: ((.:base-infra.buildpacks_bucket_name))
           droplet_directory_key: ((.:base-infra.droplets_bucket_name))
           resource_directory_key: ((.:base-infra.resources_bucket_name))
+          test-suite-folder: ((test-suite-folder))
       task: write-bosh-vars-file
-    - file: cf-deployment/.git/short_ref
-      format: trim
-      load_var: cf-deployment-version
+    - file: cf-performance-tests-pipeline/ci/tasks/get-artifact-versions/task.yml
+      task: get-artifacts-versions
+  - attempts: 3
+    file: concourse-tasks/combine-directories/task.yml
+    input_mapping:
+      src-1: cf-vars-file
+      src-2: cf-versions
+    output_mapping:
+      target: combined-vars-files
+    task: combine-vars-file-directories
   - attempts: 3
     file: cf-deployment-concourse-tasks/bosh-deploy/task.yml
     input_mapping:
       ops-files: combined-ops-files
-      vars-files: cf-vars-file
+      vars-files: combined-vars-files
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
+      BOSH_DEPLOY_ARGS: --var=results_folder=/tmp/results/rails/postgres15/results/
       MANIFEST_FILE: cf-deployment.yml
-      OPS_FILES: operations/use-postgres.yml operations/use-compiled-releases.yml((additional-ops-files))
+      OPS_FILES: operations/performance-tests-errand.yml operations/use-compiled-releases.yml
+        operations/use-postgres.yml operations/use-postgres-15.yml((additional-ops-files))
         operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml
         operations/log-db-queries.yml
-      SYSTEM_DOMAIN: cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
-      VARS_FILES: cf-vars.yml
+      SYSTEM_DOMAIN: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      VARS_FILES: cf-vars.yml cf_versions.yml
     task: deploy-cf
   - attempts: 3
     file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
     task: bosh-clean-up
   - attempts: 3
-    file: cf-performance-tests-pipeline/ci/tasks/run-performance-tests/task.yml
+    file: cf-deployment-concourse-tasks/run-errand/task.yml
     params:
-      BBL_STATE_DIR: state
-      CCDB: postgres
-      CLOUD_CONTROLLER_TYPE: ((cloud_controller_type))
-      GIT_COMMIT_EMAIL: ((cf-perf-github-user-email))
-      GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-deployment-version)), ((cloud_controller_type))
-        cc with postgres ccdb
-      GIT_COMMIT_USERNAME: ((cf-perf-github-username))
-      TEST_SUITE_FOLDER: ((test-suite-folder))
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DEPLOYMENT_NAME: cf
+      ERRAND_NAME: cf-performance-tests-errand
+      KEEP_ALIVE: true
     task: run-performance-tests
+  - file: cf-versions/cf_versions.yml
+    format: yaml
+    load_var: cf-versions
+  - attempts: 3
+    file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
+      GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)),
+        ((cloud_controller_type)) cc with postgres 15 ccdb
+      GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
+    task: commit-test-results
   - params:
       rebase: true
       repository: cf-performance-tests-pipeline
     put: results
+  - attempts: 3
+    file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DELETE_ALL_DEPLOYMENTS: true
+      IGNORE_ERRORS: true
+    task: bosh-delete-deployments
+  serial: true
+  serial_groups:
+  - deploy-test-destroy
+- name: run-perf-tests-postgres
+  on_failure:
+    params:
+      alert_type: failed
+    put: slack-notification
+  plan:
+  - in_parallel:
+    - get: cf-performance-tests-pipeline
+      passed:
+      - run-perf-tests-postgres-15
+      trigger: true
+    - get: cf-deployment
+      passed:
+      - run-perf-tests-postgres-15
+      trigger: true
+    - get: cf-deployment-concourse-tasks
+    - get: bbl-state
+      passed:
+      - run-perf-tests-postgres-15
+    - get: base-infra
+    - get: concourse-tasks
+  - file: base-infra/metadata
+    format: json
+    load_var: base-infra
+  - in_parallel:
+    - attempts: 3
+      file: concourse-tasks/combine-directories/task.yml
+      input_mapping:
+        src-1: cf-deployment
+        src-2: cf-performance-tests-pipeline
+      output_mapping:
+        target: combined-ops-files
+      params:
+        SRC_1_GLOB: operations/*.yml
+        SRC_2_GLOB: operations/*.yml
+      task: combine-ops-file-directories
+    - attempts: 3
+      file: cf-performance-tests-pipeline/ci/tasks/write-bosh-vars-file/task.yml
+      params:
+        VARS:
+          app_package_directory_key: ((.:base-infra.packages_bucket_name))
+          aws_region: ((region))
+          blobstore_access_key_id: ((.:base-infra.cloud_controller_aws_creds.aws_access_key_id))
+          blobstore_secret_access_key: ((.:base-infra.cloud_controller_aws_creds.aws_secret_access_key))
+          buildpack_directory_key: ((.:base-infra.buildpacks_bucket_name))
+          droplet_directory_key: ((.:base-infra.droplets_bucket_name))
+          resource_directory_key: ((.:base-infra.resources_bucket_name))
+          test-suite-folder: ((test-suite-folder))
+      task: write-bosh-vars-file
+    - file: cf-performance-tests-pipeline/ci/tasks/get-artifact-versions/task.yml
+      task: get-artifacts-versions
+  - attempts: 3
+    file: concourse-tasks/combine-directories/task.yml
+    input_mapping:
+      src-1: cf-vars-file
+      src-2: cf-versions
+    output_mapping:
+      target: combined-vars-files
+    task: combine-vars-file-directories
+  - attempts: 3
+    file: cf-deployment-concourse-tasks/bosh-deploy/task.yml
+    input_mapping:
+      ops-files: combined-ops-files
+      vars-files: combined-vars-files
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      BOSH_DEPLOY_ARGS: --var=results_folder=/tmp/results/rails/postgres/results/
+      MANIFEST_FILE: cf-deployment.yml
+      OPS_FILES: operations/performance-tests-errand.yml operations/use-compiled-releases.yml
+        operations/use-postgres.yml((additional-ops-files)) operations/scale-up-vms.yml
+        operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml
+      SYSTEM_DOMAIN: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      VARS_FILES: cf-vars.yml cf_versions.yml
+    task: deploy-cf
+  - attempts: 3
+    file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+    task: bosh-clean-up
+  - attempts: 3
+    file: cf-deployment-concourse-tasks/run-errand/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DEPLOYMENT_NAME: cf
+      ERRAND_NAME: cf-performance-tests-errand
+      KEEP_ALIVE: true
+    task: run-performance-tests
+  - file: cf-versions/cf_versions.yml
+    format: yaml
+    load_var: cf-versions
+  - attempts: 3
+    file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
+      GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)),
+        ((cloud_controller_type)) cc with postgres ccdb
+      GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
+    task: commit-test-results
+  - params:
+      rebase: true
+      repository: cf-performance-tests-pipeline
+    put: results
+  - attempts: 3
+    file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DELETE_ALL_DEPLOYMENTS: true
+      IGNORE_ERRORS: true
+    task: bosh-delete-deployments
   serial: true
   serial_groups:
   - deploy-test-destroy
@@ -323,13 +473,10 @@ jobs:
       trigger: true
     - get: cf-deployment-concourse-tasks
     - get: bbl-state
-      params:
-        unpack: true
       passed:
       - run-perf-tests-postgres
     - get: base-infra
     - get: concourse-tasks
-    - get: cf-performance-tests
   - file: base-infra/metadata
     format: json
     load_var: base-infra
@@ -356,45 +503,69 @@ jobs:
           buildpack_directory_key: ((.:base-infra.buildpacks_bucket_name))
           droplet_directory_key: ((.:base-infra.droplets_bucket_name))
           resource_directory_key: ((.:base-infra.resources_bucket_name))
+          test-suite-folder: ((test-suite-folder))
       task: write-bosh-vars-file
-    - file: cf-deployment/.git/short_ref
-      format: trim
-      load_var: cf-deployment-version
+    - file: cf-performance-tests-pipeline/ci/tasks/get-artifact-versions/task.yml
+      task: get-artifacts-versions
+  - attempts: 3
+    file: concourse-tasks/combine-directories/task.yml
+    input_mapping:
+      src-1: cf-vars-file
+      src-2: cf-versions
+    output_mapping:
+      target: combined-vars-files
+    task: combine-vars-file-directories
   - attempts: 3
     file: cf-deployment-concourse-tasks/bosh-deploy/task.yml
     input_mapping:
       ops-files: combined-ops-files
-      vars-files: cf-vars-file
+      vars-files: combined-vars-files
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
+      BOSH_DEPLOY_ARGS: --var=results_folder=/tmp/results/rails/mysql/results/
       MANIFEST_FILE: cf-deployment.yml
-      OPS_FILES: operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml
-        operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml
-      SYSTEM_DOMAIN: cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
-      VARS_FILES: cf-vars.yml
+      OPS_FILES: operations/performance-tests-errand.yml operations/use-compiled-releases.yml((additional-ops-files))
+        operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml
+        operations/log-db-queries.yml
+      SYSTEM_DOMAIN: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      VARS_FILES: cf-vars.yml cf_versions.yml
     task: deploy-cf
   - attempts: 3
     file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
     task: bosh-clean-up
   - attempts: 3
-    file: cf-performance-tests-pipeline/ci/tasks/run-performance-tests/task.yml
+    file: cf-deployment-concourse-tasks/run-errand/task.yml
     params:
-      BBL_STATE_DIR: state
-      CCDB: mysql
-      CLOUD_CONTROLLER_TYPE: ((cloud_controller_type))
-      GIT_COMMIT_EMAIL: ((cf-perf-github-user-email))
-      GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-deployment-version)), ((cloud_controller_type))
-        cc with mysql ccdb
-      GIT_COMMIT_USERNAME: ((cf-perf-github-username))
-      TEST_SUITE_FOLDER: ((test-suite-folder))
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DEPLOYMENT_NAME: cf
+      ERRAND_NAME: cf-performance-tests-errand
+      KEEP_ALIVE: true
     task: run-performance-tests
-    timeout: 2h30m
+  - file: cf-versions/cf_versions.yml
+    format: yaml
+    load_var: cf-versions
+  - attempts: 3
+    file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
+      GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)),
+        ((cloud_controller_type)) cc with mysql ccdb
+      GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
+    task: commit-test-results
   - params:
       rebase: true
       repository: cf-performance-tests-pipeline
     put: results
+  - attempts: 3
+    file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
+    params:
+      BBL_STATE_DIR: perf-tests/bbl-state
+      DELETE_ALL_DEPLOYMENTS: true
+      IGNORE_ERRORS: true
+    task: bosh-delete-deployments
   serial: true
   serial_groups:
   - deploy-test-destroy
@@ -415,8 +586,6 @@ jobs:
       trigger: true
     - get: cf-deployment-concourse-tasks
     - get: bbl-state
-      params:
-        unpack: true
     - get: base-infra
   - file: base-infra/metadata
     format: json
@@ -425,7 +594,7 @@ jobs:
     - attempts: 3
       file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
       params:
-        BBL_STATE_DIR: state
+        BBL_STATE_DIR: perf-tests/bbl-state
         DELETE_ALL_DEPLOYMENTS: true
         IGNORE_ERRORS: true
       task: bosh-delete-deployments
@@ -433,17 +602,18 @@ jobs:
       - ensure:
           attempts: 3
           params:
-            file: updated-bbl-state/bbl-state.tgz
+            rebase: true
+            repository: updated-bbl-state
           put: bbl-state
         file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+        input_mapping:
+          bbl-state: bbl-state
         params:
           BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
           BBL_AWS_REGION: ((region))
           BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
-          BBL_STATE_DIR: state
-          STORE_BBL_STATE_AS_TARBALL: true
+          BBL_STATE_DIR: perf-tests/bbl-state
           TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-          TF_VAR_parent_zone_id: ((parent_zone_id))
         task: bbl-destroy
       - attempts: 3
         get_params:
@@ -460,12 +630,10 @@ jobs:
   - in_parallel:
     - get: cf-deployment-concourse-tasks
     - get: bbl-state
-      params:
-        unpack: true
   - attempts: 3
     file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
       DELETE_ALL_DEPLOYMENTS: true
       IGNORE_ERRORS: true
     task: bosh-delete-deployments
@@ -477,8 +645,6 @@ jobs:
   - in_parallel:
     - get: cf-deployment-concourse-tasks
     - get: bbl-state
-      params:
-        unpack: true
     - get: base-infra
   - file: base-infra/metadata
     format: json
@@ -486,17 +652,18 @@ jobs:
   - ensure:
       attempts: 3
       params:
-        file: updated-bbl-state/bbl-state.tgz
+        rebase: true
+        repository: updated-bbl-state
       put: bbl-state
     file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+    input_mapping:
+      bbl-state: bbl-state
     params:
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_REGION: ((region))
       BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
-      BBL_STATE_DIR: state
-      STORE_BBL_STATE_AS_TARBALL: true
+      BBL_STATE_DIR: perf-tests/bbl-state
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-      TF_VAR_parent_zone_id: ((parent_zone_id))
     task: bbl-destroy
   serial: true
   serial_groups:
@@ -520,8 +687,6 @@ jobs:
     - get: cf-performance-tests-pipeline
     - get: cf-deployment-concourse-tasks
     - get: bbl-state
-      params:
-        unpack: true
     - get: base-infra
   - file: base-infra/metadata
     format: json
@@ -530,7 +695,7 @@ jobs:
     - attempts: 3
       file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
       params:
-        BBL_STATE_DIR: state
+        BBL_STATE_DIR: perf-tests/bbl-state
         DELETE_ALL_DEPLOYMENTS: true
         IGNORE_ERRORS: true
       task: bosh-delete-deployments
@@ -538,17 +703,18 @@ jobs:
       - ensure:
           attempts: 3
           params:
-            file: updated-bbl-state/bbl-state.tgz
+            rebase: true
+            repository: updated-bbl-state
           put: bbl-state
         file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+        input_mapping:
+          bbl-state: bbl-state
         params:
           BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
           BBL_AWS_REGION: ((region))
           BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
-          BBL_STATE_DIR: state
-          STORE_BBL_STATE_AS_TARBALL: true
+          BBL_STATE_DIR: perf-tests/bbl-state
           TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
-          TF_VAR_parent_zone_id: ((parent_zone_id))
         task: bbl-destroy
       - attempts: 3
         get_params:
@@ -605,44 +771,44 @@ resources:
     uri: https://github.com/cloudfoundry/cf-deployment-concourse-tasks.git
   type: git
 - icon: github
+  name: capi-ci
+  source:
+    branch: main
+    password: ((ari-wg-gitbot-token))
+    uri: https://github.com/cloudfoundry/capi-ci.git
+    username: ((ari-wg-gitbot-username))
+  type: git
+- icon: github
   name: cf-performance-tests-pipeline
   source:
     branch: ((cf_perf_tests_pipeline_source_branch))
     ignore_paths:
     - results/**
-    password: ((cf-perf-github-user-token))
+    password: ((ari-wg-gitbot-token))
     uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-    username: ((cf-perf-github-username))
+    username: ((ari-wg-gitbot-username))
   type: git
 - icon: github
   name: results
   source:
     branch: ((results-branch))
-    password: ((cf-perf-github-user-token))
+    password: ((ari-wg-gitbot-token))
     uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
-    username: ((cf-perf-github-username))
+    username: ((ari-wg-gitbot-username))
   type: git
-- icon: aws
+- icon: git
   name: bbl-state
   source:
-    access_key_id: ((aws-pipeline-user-id))
-    bucket: ((state-bucket-name))
-    initial_version: "0"
-    region_name: ((region))
-    secret_access_key: ((aws-pipeline-user-secret))
-    versioned_file: ((cloud_controller_type))((test_suffix))/bbl-state.tar.gz
-  type: s3
+    branch: main
+    password: ((ari-wg-gitbot-token))
+    uri: https://github.com/cloudfoundry/capi-ci-private.git
+    username: ((ari-wg-gitbot-username))
+  type: git
 - icon: github
   name: cf-deployment
   source:
     tag_filter: ((cf_deployment_tag_filter))
     uri: https://github.com/cloudfoundry/cf-deployment.git
-  type: git
-- icon: github
-  name: cf-performance-tests
-  source:
-    branch: main
-    uri: https://github.com/cloudfoundry/cf-performance-tests.git
   type: git
 - name: slack-notification
   source:
@@ -672,7 +838,7 @@ resources:
     env_name: terraform
     vars:
       region: ((region))
-      system_domain: cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+      system_domain: cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
       test_environment: ((cloud_controller_type))((test_suffix))
   type: terraform
 - icon: github

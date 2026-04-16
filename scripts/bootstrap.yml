@@ -6,10 +6,10 @@ Parameters:
     Default: cf-perf-tests-pipeline
   AWSRegion:
     Type: String
-    Default: eu-central-1
+    Default: us-east-1
   BucketName:
     Type: String
-    Default: cf-performance-tests
+    Default: cf-performance-tests-base-infra
 Resources:
   PipelineUser:
     Type: AWS::IAM::User
@@ -54,7 +54,7 @@ Resources:
             Resource: '*'
       Users:
         - !Ref UserName
-  PerfTestBucket:
+  BaseInfraBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Ref BucketName

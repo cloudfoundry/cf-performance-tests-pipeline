@@ -1,6 +1,5 @@
-region: eu-west-3
-parent_zone_id: Z221ODT4T41IC2
-parent_zone_domain: bndl.sapcloud.io
-state-bucket-name: cf-performance-tests-new
+region: us-east-1
+state-bucket-name: cf-performance-tests-base-infra
+parent_zone_domain: app-runtime-interfaces.ci.cloudfoundry.org
 results-branch: main
 test-suite-folder: ""

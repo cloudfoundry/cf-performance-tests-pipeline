@@ -16,7 +16,7 @@ groups:
   - manual-teardown-all
 
 anchors:
-  system_domain: &system_domain cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+  system_domain: &system_domain cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
   alert_failure: &alert_failure
     on_failure:
       put: slack-notification
@@ -27,24 +27,25 @@ anchors:
     attempts: 3
     file: cf-deployment-concourse-tasks/bosh-delete-deployment/task.yml
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
       DELETE_ALL_DEPLOYMENTS: true
       IGNORE_ERRORS: true
   bbl_state_upload: &bbl_state_upload
     put: bbl-state
     attempts: 3
     params:
-      file: updated-bbl-state/bbl-state.tgz
+      repository: updated-bbl-state
+      rebase: true
   bbl_destroy: &bbl_destroy
     task: bbl-destroy
     file: cf-deployment-concourse-tasks/bbl-destroy/task.yml
+    input_mapping:
+      bbl-state: bbl-state
     params:
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
       BBL_AWS_REGION: ((region))
-      STORE_BBL_STATE_AS_TARBALL: true
-      TF_VAR_parent_zone_id: ((parent_zone_id))
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
     ensure:
       <<: *bbl_state_upload
@@ -52,6 +53,7 @@ anchors:
     task: bbl-up
     file: cf-deployment-concourse-tasks/bbl-up/task.yml
     input_mapping:
+      bbl-state: bbl-state
       bbl-config: cf-performance-tests-pipeline
     params:
       BBL_IAAS: aws
@@ -59,14 +61,12 @@ anchors:
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
       BBL_AWS_REGION: ((region))
-      BBL_STATE_DIR: state
+      BBL_STATE_DIR: perf-tests/bbl-state
       BBL_CONFIG_DIR: bbl-patches
       BBL_LB_CERT: ((.:base-infra.cert_pem))
       BBL_LB_KEY: ((.:base-infra.private_key))
       LB_DOMAIN: *system_domain
       SKIP_LB_CREATION: false
-      STORE_BBL_STATE_AS_TARBALL: true
-      TF_VAR_parent_zone_id: ((parent_zone_id))
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
     ensure:
       <<: *bbl_state_upload
@@ -102,6 +102,14 @@ resources:
     icon: github
     source:
       uri: https://github.com/cloudfoundry/cf-deployment-concourse-tasks.git
+  - name: capi-ci
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/cloudfoundry/capi-ci.git
+      branch: main
+      username: ((ari-wg-gitbot-username))
+      password: ((ari-wg-gitbot-token))
   - name: cf-performance-tests-pipeline
     type: git
     icon: github
@@ -109,7 +117,7 @@ resources:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
       username: ((ari-wg-gitbot-username))
       password: ((ari-wg-gitbot-token))
-      branch: ((results-branch))
+      branch: main
       ignore_paths: [results/**]
   - name: results
     type: git
@@ -121,15 +129,13 @@ resources:
       branch: ((results-branch))
 
   - name: bbl-state
-    type: s3
-    icon: aws
+    type: git
+    icon: git
     source:
-      region_name: ((region))
-      bucket: ((state-bucket-name))
-      versioned_file: ((cloud_controller_type))((test_suffix))/bbl-state.tar.gz
-      initial_version: "0"
-      access_key_id: ((aws-pipeline-user-id))
-      secret_access_key: ((aws-pipeline-user-secret))
+      uri: https://github.com/cloudfoundry/capi-ci-private.git
+      branch: main
+      username: ((ari-wg-gitbot-username))
+      password: ((ari-wg-gitbot-token))
   - name: cf-deployment
     type: git
     icon: github
@@ -212,14 +218,24 @@ jobs:
           trigger: true
           passed: [create-base-infra]
         - get: cf-deployment-concourse-tasks
+        - get: capi-ci
         - get: bbl-state
-          params:
-            unpack: true
         - get: base-infra
       - load_var: base-infra
         file: base-infra/metadata
         format: json
       - *bbl_up
+      - task: create-dns-record
+        attempts: 3
+        file: capi-ci/ci/bbl-tasks/create_dns_record.yml
+        input_mapping:
+          bbl-state: updated-bbl-state
+        params:
+          BBL_STATE_DIR: perf-tests/bbl-state
+          DNS_DOMAIN: *system_domain
+          SHARED_DNS_ZONE_NAME: app-runtime-interfaces
+          GCP_DNS_SERVICE_ACCOUNT_KEY: ((capi-bbl-dns-service-account))
+          GCP_PROJECT_ID: app-runtime-interfaces-wg
 
   - name: run-perf-tests-postgres-15
     serial: true
@@ -235,8 +251,6 @@ jobs:
           passed: [deploy-director]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
-          params:
-            unpack: true
           passed: [deploy-director]
         - get: base-infra
         - get: concourse-tasks
@@ -285,7 +299,7 @@ jobs:
           ops-files: combined-ops-files
           vars-files: combined-vars-files
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
@@ -295,12 +309,12 @@ jobs:
         attempts: 3
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
       - task: run-performance-tests
         attempts: 3
         file: cf-deployment-concourse-tasks/run-errand/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           DEPLOYMENT_NAME: cf
           ERRAND_NAME: cf-performance-tests-errand
           KEEP_ALIVE: true
@@ -311,7 +325,7 @@ jobs:
         attempts: 3
         file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with postgres 15 ccdb
@@ -334,8 +348,6 @@ jobs:
           passed: [run-perf-tests-postgres-15]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
-          params:
-            unpack: true
           passed: [run-perf-tests-postgres-15]
         - get: base-infra
         - get: concourse-tasks
@@ -384,7 +396,7 @@ jobs:
           ops-files: combined-ops-files
           vars-files: combined-vars-files
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
@@ -394,12 +406,12 @@ jobs:
         attempts: 3
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
       - task: run-performance-tests
         attempts: 3
         file: cf-deployment-concourse-tasks/run-errand/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           DEPLOYMENT_NAME: cf
           ERRAND_NAME: cf-performance-tests-errand
           KEEP_ALIVE: true
@@ -410,7 +422,7 @@ jobs:
         attempts: 3
         file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with postgres ccdb
@@ -434,8 +446,6 @@ jobs:
           passed: [run-perf-tests-postgres]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
-          params:
-            unpack: true
           passed: [run-perf-tests-postgres]
         - get: base-infra
         - get: concourse-tasks
@@ -484,7 +494,7 @@ jobs:
           ops-files: combined-ops-files
           vars-files: combined-vars-files
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
@@ -494,12 +504,12 @@ jobs:
         attempts: 3
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
       - task: run-performance-tests
         attempts: 3
         file: cf-deployment-concourse-tasks/run-errand/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           DEPLOYMENT_NAME: cf
           ERRAND_NAME: cf-performance-tests-errand
           KEEP_ALIVE: true
@@ -510,7 +520,7 @@ jobs:
         attempts: 3
         file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
         params:
-          BBL_STATE_DIR: state
+          BBL_STATE_DIR: perf-tests/bbl-state
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with mysql ccdb
@@ -534,8 +544,6 @@ jobs:
           passed: [run-perf-tests-mysql]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
-          params:
-            unpack: true
         - get: base-infra
       - load_var: base-infra
         file: base-infra/metadata
@@ -549,8 +557,6 @@ jobs:
     - in_parallel:
       - get: cf-deployment-concourse-tasks
       - get: bbl-state
-        params:
-          unpack: true
     - *delete_cf
 
   - name: manual-teardown-bbl-only
@@ -560,8 +566,6 @@ jobs:
     - in_parallel:
       - get: cf-deployment-concourse-tasks
       - get: bbl-state
-        params:
-          unpack: true
       - get: base-infra
     - load_var: base-infra
       file: base-infra/metadata
@@ -583,8 +587,6 @@ jobs:
       - get: cf-performance-tests-pipeline
       - get: cf-deployment-concourse-tasks
       - get: bbl-state
-        params:
-          unpack: true
       - get: base-infra
     - load_var: base-infra
       file: base-infra/metadata

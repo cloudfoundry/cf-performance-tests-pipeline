@@ -100,6 +100,14 @@ If you're not sure whether the director actually exists, as a sanity check you m
 1. When debugging a failure it's often useful to run `bosh tasks --recent=<NUMBER>` to find the number of a failed task, and then retrieve its debug logs with `bosh task <TASK_NUMBER> --debug`.
 1. Also consider setting `BOSH_LOG_LEVEL=debug` when running other commands.
 
+#### "common name is too long" error
+
+If the system domain name is too long, you may see this error when running `bosh deploy`:
+```
+Error: Config Server failed to generate value for '/bosh-perf-test-rails/cf/network_policy_server_external' with type 'certificate'. HTTP Code '400', Error: 'The request could not be completed because the common name is too long. The max length for common name is 64 characters.'
+```
+The common name (CN) for the CF certificates must not exceed 64 characters. Check the `system_domain` definition in the [pipeline.yml](./ci/pipeline.yml) file, and if it's too long, change it to something shorter and re-run the pipeline.
+
 ### Automated teardown fails
 
 Aside from the several dozen bosh-managed VMs created as part of a cf deployment, the pipeline creates a total of about 100 AWS resources per test in environment. Although the pipeline is written to destroy these resources upon successfully completing the tests, it also has a series of jobs that can be manually triggered to separately delete the cf bosh deployment, the bosh director, the base infrastructure (upon which the former both depend) - or all three reverse-order. These are defined in a pipeline group that you can view by clicking the `manual-teardown` button in the top-left of the Concourse UI when viewing the pipeline in question.
