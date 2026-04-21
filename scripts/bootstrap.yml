@@ -7,6 +7,9 @@ Parameters:
   AWSRegion:
     Type: String
     Default: us-east-1
+  BucketName:
+    Type: String
+    Default: cf-performance-tests-base-infra
 Resources:
   PipelineUser:
     Type: AWS::IAM::User
@@ -51,6 +54,27 @@ Resources:
             Resource: '*'
       Users:
         - !Ref UserName
+  BaseInfraBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteRule
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 14
 Outputs:
   PipelineUserCredsARN:
     Description: ARN for the pipeline user creds that the human running this should retrieve and store in credhub

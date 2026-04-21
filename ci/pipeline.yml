@@ -16,7 +16,7 @@ groups:
   - manual-teardown-all
 
 anchors:
-  system_domain: &system_domain cf.perf-test-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
+  system_domain: &system_domain cf.p-((cloud_controller_type))((test_suffix)).((parent_zone_domain))
   alert_failure: &alert_failure
     on_failure:
       put: slack-notification
@@ -159,7 +159,7 @@ resources:
       env_name: terraform
       backend_type: s3
       backend_config:
-        bucket: cf-performance-tests-base-infra
+        bucket: ((state-bucket-name))
         workspace_key_prefix: ((cloud_controller_type))((test_suffix))
         key: base-infra.tfstate
         region: ((region))
