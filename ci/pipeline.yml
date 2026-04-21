@@ -46,7 +46,6 @@ anchors:
       BBL_AWS_ACCESS_KEY_ID: ((.:base-infra.bbl_aws_creds.aws_access_key_id))
       BBL_AWS_SECRET_ACCESS_KEY: ((.:base-infra.bbl_aws_creds.aws_secret_access_key))
       BBL_AWS_REGION: ((region))
-      TF_VAR_parent_zone_id: ((parent_zone_id))
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
     ensure:
       <<: *bbl_state_upload
@@ -68,7 +67,6 @@ anchors:
       BBL_LB_KEY: ((.:base-infra.private_key))
       LB_DOMAIN: *system_domain
       SKIP_LB_CREATION: false
-      TF_VAR_parent_zone_id: ((parent_zone_id))
       TF_VAR_elb_idle_timeout: ((cf_router_idle_timeout_secs))
     ensure:
       <<: *bbl_state_upload
