@@ -220,6 +220,7 @@ jobs:
           trigger: true
           passed: [create-base-infra]
         - get: cf-deployment-concourse-tasks
+        - get: capi-ci
         - get: bbl-state
         - get: base-infra
       - load_var: base-infra
