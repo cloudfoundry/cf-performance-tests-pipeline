@@ -104,6 +104,14 @@ resources:
     icon: github
     source:
       uri: https://github.com/cloudfoundry/cf-deployment-concourse-tasks.git
+  - name: capi-ci
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/cloudfoundry/capi-ci.git
+      branch: main
+      username: ((ari-wg-gitbot-username))
+      password: ((ari-wg-gitbot-token))
   - name: cf-performance-tests-pipeline
     type: git
     icon: github
@@ -218,6 +226,17 @@ jobs:
         file: base-infra/metadata
         format: json
       - *bbl_up
+      - task: create-dns-record
+        attempts: 3
+        file: capi-ci/ci/bbl-tasks/create_dns_record.yml
+        input_mapping:
+          bbl-state: updated-bbl-state
+        params:
+          BBL_STATE_DIR: perf-tests/bbl-state
+          DNS_DOMAIN: *system_domain
+          SHARED_DNS_ZONE_NAME: app-runtime-interfaces
+          GCP_DNS_SERVICE_ACCOUNT_KEY: ((capi-bbl-dns-service-account))
+          GCP_PROJECT_ID: app-runtime-interfaces-wg
 
   - name: run-perf-tests-postgres-15
     serial: true

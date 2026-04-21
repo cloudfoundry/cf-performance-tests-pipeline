@@ -1,5 +1,3 @@
 region: us-east-1
-parent_zone_id: 5227944593942232179
-parent_zone_domain: app-runtime-interfaces.ci.cloudfoundry.org
 results-branch: main
 test-suite-folder: ""
