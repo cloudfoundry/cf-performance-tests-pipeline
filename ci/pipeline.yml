@@ -111,7 +111,7 @@ resources:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
       username: ((ari-wg-gitbot-username))
       password: ((ari-wg-gitbot-token))
-      branch: ((results-branch))
+      branch: migrate_to_us_east
       ignore_paths: [results/**]
   - name: results
     type: git
@@ -153,7 +153,7 @@ resources:
       env_name: terraform
       backend_type: s3
       backend_config:
-        bucket: ((state-bucket-name))
+        bucket: cf-performance-tests-base-infra
         workspace_key_prefix: ((cloud_controller_type))((test_suffix))
         key: base-infra.tfstate
         region: ((region))

@@ -644,7 +644,7 @@ resources:
   source:
     backend_config:
       access_key: ((aws-pipeline-user-id))
-      bucket: ((state-bucket-name))
+      bucket: cf-performance-tests-base-infra
       key: base-infra.tfstate
       region: ((region))
       secret_key: ((aws-pipeline-user-secret))
