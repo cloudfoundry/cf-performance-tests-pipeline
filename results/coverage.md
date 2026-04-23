@@ -1,5 +1,6 @@
 | version   | rails-postgres15   | rails-postgres     | rails-mysql        |
 |:----------|:-------------------|:-------------------|:-------------------|
+| v55.5.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v55.4.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v55.0.0   | :white_check_mark: | :white_check_mark: | :x:                |
 | v54.9.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
