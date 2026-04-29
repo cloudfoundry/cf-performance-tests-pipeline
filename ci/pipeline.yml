@@ -117,7 +117,7 @@ resources:
       uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
       username: ((ari-wg-gitbot-username))
       password: ((ari-wg-gitbot-token))
-      branch: migrate_to_us_east
+      branch: main
       ignore_paths: [results/**]
   - name: results
     type: git
