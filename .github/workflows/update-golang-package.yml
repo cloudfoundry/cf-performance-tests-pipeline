@@ -1,0 +1,62 @@
+name: Update golang BOSH package
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # every Monday at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Get latest golang package from bosh-package-golang-release
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_TAG=$(gh api repos/cloudfoundry/bosh-package-golang-release/tags --jq '.[0].name')
+          echo "Latest tag: $LATEST_TAG"
+
+          LATEST_PACKAGE=$(gh api "repos/cloudfoundry/bosh-package-golang-release/contents/packages?ref=$LATEST_TAG" \
+            --jq '[.[].name | select(test("^golang-1\\.[0-9]+-linux$"))] | sort_by(split(".")[1] | tonumber) | last')
+          echo "Latest package: $LATEST_PACKAGE"
+
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          echo "latest_package=$LATEST_PACKAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout pipeline repo
+        uses: actions/checkout@v4
+
+      - name: Check current package version
+        id: check
+        run: |
+          CURRENT=$(grep -oP 'golang-1\.\d+-linux' ci/tasks/create-final-bosh-release/task.sh)
+          echo "Current package: $CURRENT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+
+      - name: Apply update
+        if: steps.check.outputs.current != steps.detect.outputs.latest_package
+        env:
+          LATEST_PACKAGE: ${{ steps.detect.outputs.latest_package }}
+          CURRENT: ${{ steps.check.outputs.current }}
+        run: |
+          sed -i "s/${CURRENT}/${LATEST_PACKAGE}/g" ci/tasks/create-final-bosh-release/task.sh
+
+      - name: Open or update PR
+        if: steps.check.outputs.current != steps.detect.outputs.latest_package
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: update-golang-package
+          commit-message: "Update golang BOSH package to ${{ steps.detect.outputs.latest_package }}"
+          title: "Update golang BOSH package to ${{ steps.detect.outputs.latest_package }}"
+          body: |
+            Bumps the vendored golang BOSH package from `${{ steps.check.outputs.current }}` to `${{ steps.detect.outputs.latest_package }}` (bosh-package-golang-release ${{ steps.detect.outputs.latest_tag }}).
+
+            > [!IMPORTANT]
+            > Merge this PR **before** the corresponding PR in [cf-performance-tests-release](https://github.com/cloudfoundry/cf-performance-tests-release). Merging the release repo PR triggers the Concourse release pipeline, which must pick up the updated package name from this repo first.
+          labels: dependencies
+          committer: "ari-wg-gitbot <app-runtime-interfaces@cloudfoundry.org>"
+          author: "ari-wg-gitbot <app-runtime-interfaces@cloudfoundry.org>"
