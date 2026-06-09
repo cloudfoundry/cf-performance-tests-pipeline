@@ -21,7 +21,7 @@ jobs:
           echo "Latest tag: $LATEST_TAG"
 
           LATEST_PACKAGE=$(gh api "repos/cloudfoundry/bosh-package-golang-release/contents/packages?ref=$LATEST_TAG" \
-            --jq '[.[].name | select(test("^golang-1\\.[0-9]+-linux$"))] | sort_by(split(".")[1] | tonumber) | last')
+            --jq '[.[].name | select(test("^golang-1\\.[0-9]+-linux$"))] | sort_by(split(".")[1] | split("-")[0] | tonumber) | last')
           echo "Latest package: $LATEST_PACKAGE"
 
           echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
