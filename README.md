@@ -36,11 +36,13 @@ Four types of chart are generated:
 4. Simplified with most recent runs: same as 3, only contains the last 15 runs.
 
 ## General information
+
 The AWS account and domain used to host the BBL and CF foundation is controlled by SAP, but may move to a community owned account in the future. See [here](docs/manual-setup.md) for information on the manual steps that were followed to get the tests automated.
 
 The pipelines are running on [concourse.app-runtime-interfaces.ci.cloudfoundry.org](https://concourse.app-runtime-interfaces.ci.cloudfoundry.org/). All secrets referenced by the pipelines (e.g. `((aws-pipeline-user-secret))`) are stored in a CredHub server deployed alongside Concourse. Contributors who need access must contact the [App Runtime Interfaces Working Group](https://github.com/cloudfoundry/community/blob/main/toc/working-groups/app-runtime-interfaces.md) in order to get approval to be added to the working group's Google Cloud account. Once access is granted, you can login to CredHub with [this script](https://github.com/cloudfoundry/concourse-infra-for-fiwg/blob/45e6b798017cde94518362baa3f7441f1b029767/start-credhub-cli.sh).
 
 ### Access a performance test environment
+
 Although the test environments are torn down automatically at the end of a successful run, you might need to access one to debug a failure.
 
 1. Follow [these instructions](https://github.com/cloudfoundry/bosh-bootloader#prerequisites) to install `bbl` locally.
@@ -51,7 +53,9 @@ Although the test environments are torn down automatically at the end of a succe
 1. You should also now be able to access the director's CredHub with the `credhub` CLI.
 
 ### Connect to the CCDB: MySQL
+
 If you have deployed a test environment with MySQL as the Cloud Controller's database, you can open a tunnel to the jumpbox and then connect from there. Initialise `bbl` as explained above and then run:
+
 ```bash
 ssh -4 -N -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=10" -o "IPQoS=throughput" \
   -i "$JUMPBOX_PRIVATE_KEY" -L "3306:10.0.16.5:3306" jumpbox@<jumpbox ip from $BOSH_ALL_PROXY> &
@@ -59,23 +63,31 @@ ssh -4 -N -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "Se
 bosh -d cf scp database:/usr/local/bin/mysql .
 ./mysql --host=127.0.0.1 --port=3306 --user=cloud_controller cloud_controller --password=<cc_database_password from credhub>
 ```
+
 From the mysql command prompt, you can e.g. use `source db.sql` to read and execute statements from a file.
 
 ### Connect to the CCDB: PostgreSQL
+
 If you have deployed a test environment with PostgreSQL as the Cloud Controller's database, you can open a tunnel to the jumpbox and then connect from there. Initialise `bbl` as explained above and then run:
+
 ```bash
 ssh -4 -N -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "ServerAliveInterval=30" -o "ServerAliveCountMax=10" -o "IPQoS=throughput" \
   -i "$JUMPBOX_PRIVATE_KEY" -L "5524:10.0.16.5:5524" jumpbox@<jumpbox ip from $BOSH_ALL_PROXY> &
 ```
+
 To get PostgreSQL run:
+
 ```bash
 apt-get update
 apt-get install postgresql
 ```
+
 To connect to psql run:
+
 ```bash
 psql --host=127.0.0.1 --port=5524 --user=cloud_controller cloud_controller 
 ```
+
 ## Troubleshooting
 
 The tests are fully automated, but some of the following techniques might help if you need to debug a failure:
@@ -107,6 +119,7 @@ Aside from the several dozen bosh-managed VMs created as part of a cf deployment
 > Warning: If you run `manual-teardown-base-infra-only` deletes the IAM user and associated policy that `bbl` depends on to manage resources in AWS. You should not run this before `bbl` has destroyed those resources.
 
 If these manual jobs fail to clean up an environment, you will need to locate the test environment's subfolder in the `cf-performance-tests` S3 bucket and, depending on the failure, download either `bbl-state.tgz` or `base-infra/terraform.tfstate`.
+
 - `bbl-state.tgz`:
     1. Extract the archive and change into the state directory
     1. Run `eval "$(bbl print-env)"` and then `bosh vms` to check if any bosh-managed vms still exist. If they do, try to delete them with bosh (if this fails, you'll have to do this manually in AWS)
@@ -118,4 +131,3 @@ If these manual jobs fail to clean up an environment, you will need to locate th
     1. Download the file, place it in [base-infra/terraform](../base-infra/terraform), and run `terraform init` with whatever version of the terraform CLI matches that used by the latest commit of the [Concourse terraform resource](https://github.com/ljfranklin/terraform-resource) when the pipeline last ran the `base-infra` job. Then `terraform destroy`.
 
 In both cases, the last resort - and this should almost never be necessary - will be to manually delete any remaining resources from AWS
-
