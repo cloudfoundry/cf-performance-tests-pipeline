@@ -9,6 +9,8 @@ image_resource:
 inputs:
   - name: cf-performance-tests-pipeline
   - name: cf-deployment
+  - name: next-version
+  - name: capi-release-ci-passed
 
 outputs:
   - name: cf-versions
