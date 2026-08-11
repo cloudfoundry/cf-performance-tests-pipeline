@@ -4,6 +4,7 @@ groups:
   - detect-new-versions
   - create-base-infra
   - deploy-director
+  - upload-dev-capi-release
   - run-perf-tests-postgres-15
   - run-perf-tests-postgres
   - run-perf-tests-mysql
@@ -142,6 +143,21 @@ resources:
     source:
       uri: https://github.com/cloudfoundry/cf-deployment.git
       tag_filter: v*
+  - name: capi-release-ci-passed
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/cloudfoundry/capi-release.git
+      branch: ci-passed
+  - name: next-version
+    type: semver
+    icon: counter
+    source:
+      driver: gcs
+      bucket: capi-release-versions-app-runtime-interfaces
+      key: current-capi-release-version
+      json_key: ((capi-release-blobs-uploader_key))
+      initial_version: 1.176.0
   - name: slack-notification
     type: slack-alert
     source:
@@ -177,27 +193,27 @@ resources:
 jobs:
   - name: detect-new-versions
     serial: true
-    # <<: *alert_failure
+    <<: *alert_failure
     plan:
       - get: cf-performance-tests-pipeline
         trigger: true
-      - get: cf-deployment
+      - get: capi-release-ci-passed
         trigger: true
       - set_pipeline: self
         file: cf-performance-tests-pipeline/ci/pipeline.yml
         var_files:
-          - cf-performance-tests-pipeline/variables/((cloud_controller_type))((test_suffix)).yml
-          - cf-performance-tests-pipeline/variables/common.yml
+        - cf-performance-tests-pipeline/variables/((cloud_controller_type))((test_suffix)).yml
+        - cf-performance-tests-pipeline/variables/common.yml
 
   - name: create-base-infra
     serial: true
     serial_groups: [deploy-test-destroy]
-    # <<: *alert_failure
+    <<: *alert_failure
     plan:
       - get: cf-performance-tests-pipeline
         trigger: true
         passed: [detect-new-versions]
-      - get: cf-deployment
+      - get: capi-release-ci-passed
         trigger: true
         passed: [detect-new-versions]
       - put: base-infra
@@ -214,7 +230,7 @@ jobs:
         - get: cf-performance-tests-pipeline
           trigger: true
           passed: [create-base-infra]
-        - get: cf-deployment
+        - get: capi-release-ci-passed
           trigger: true
           passed: [create-base-infra]
         - get: cf-deployment-concourse-tasks
@@ -237,7 +253,7 @@ jobs:
           GCP_DNS_SERVICE_ACCOUNT_KEY: ((capi-bbl-dns-service-account))
           GCP_PROJECT_ID: app-runtime-interfaces-wg
 
-  - name: run-perf-tests-postgres-15
+  - name: upload-dev-capi-release
     serial: true
     serial_groups: [deploy-test-destroy]
     <<: *alert_failure
@@ -246,12 +262,69 @@ jobs:
         - get: cf-performance-tests-pipeline
           trigger: true
           passed: [deploy-director]
-        - get: cf-deployment
+        - get: capi-release-ci-passed
           trigger: true
           passed: [deploy-director]
-        - get: cf-deployment-concourse-tasks
+        - get: cf-deployment
+        - get: next-version
+        - get: capi-ci
         - get: bbl-state
           passed: [deploy-director]
+      - task: write-release-candidate-version
+        attempts: 3
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: cloudfoundry/cf-deployment-concourse-tasks
+              tag: latest
+          inputs:
+            - name: capi-release-ci-passed
+          outputs:
+            - name: release-candidate-version
+          run:
+            path: sh
+            args:
+              - -ec
+              - |
+                short_sha="$(git -C capi-release-ci-passed rev-parse --short HEAD)"
+                release_version="perf-test-${short_sha}"
+                echo "$release_version" > release-candidate-version/version
+                echo "Generated release candidate version: $release_version"
+      - task: create-capi-release
+        attempts: 3
+        file: capi-ci/ci/bosh/create_capi_release.yml
+        input_mapping:
+          capi-release: capi-release-ci-passed
+          next-version: release-candidate-version
+        output_mapping:
+          created-capi-release: release-tarball
+      - task: upload-capi-release-tarball
+        attempts: 3
+        file: capi-ci/ci/bosh/upload_capi_release_tarball.yml
+        params:
+          BBL_STATE_DIR: perf-tests/bbl-state
+
+  - name: run-perf-tests-postgres-15
+    serial: true
+    serial_groups: [deploy-test-destroy]
+    <<: *alert_failure
+    plan:
+      - in_parallel:
+        - get: cf-performance-tests-pipeline
+          trigger: true
+          passed: [upload-dev-capi-release]
+        - get: capi-release-ci-passed
+          trigger: true
+          passed: [upload-dev-capi-release]
+        - get: cf-deployment
+          passed: [upload-dev-capi-release]
+        - get: next-version
+          passed: [upload-dev-capi-release]
+        - get: cf-deployment-concourse-tasks
+        - get: bbl-state
+          passed: [upload-dev-capi-release]
         - get: base-infra
         - get: concourse-tasks
       - load_var: base-infra
@@ -303,7 +376,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
-          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-postgres.yml operations/use-postgres-15.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
+          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-latest-capi.yml operations/use-postgres.yml operations/use-postgres-15.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres15/results/"
       - task: bosh-clean-up
         attempts: 3
@@ -328,7 +401,7 @@ jobs:
           BBL_STATE_DIR: perf-tests/bbl-state
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
-          GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with postgres 15 ccdb
+          GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with postgres 15 ccdb
       - put: results
         params:
           repository: cf-performance-tests-pipeline
@@ -343,8 +416,12 @@ jobs:
         - get: cf-performance-tests-pipeline
           trigger: true
           passed: [run-perf-tests-postgres-15]
-        - get: cf-deployment
+        - get: capi-release-ci-passed
           trigger: true
+          passed: [run-perf-tests-postgres-15]
+        - get: cf-deployment
+          passed: [run-perf-tests-postgres-15]
+        - get: next-version
           passed: [run-perf-tests-postgres-15]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
@@ -400,7 +477,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
-          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-postgres.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
+          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-latest-capi.yml operations/use-postgres.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres/results/"
       - task: bosh-clean-up
         attempts: 3
@@ -425,7 +502,7 @@ jobs:
           BBL_STATE_DIR: perf-tests/bbl-state
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
-          GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with postgres ccdb
+          GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with postgres ccdb
       - put: results
         params:
           repository: cf-performance-tests-pipeline
@@ -441,8 +518,12 @@ jobs:
         - get: cf-performance-tests-pipeline
           trigger: true
           passed: [run-perf-tests-postgres]
-        - get: cf-deployment
+        - get: capi-release-ci-passed
           trigger: true
+          passed: [run-perf-tests-postgres]
+        - get: cf-deployment
+          passed: [run-perf-tests-postgres]
+        - get: next-version
           passed: [run-perf-tests-postgres]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
@@ -498,7 +579,7 @@ jobs:
           MANIFEST_FILE: cf-deployment.yml
           SYSTEM_DOMAIN: *system_domain
           VARS_FILES: "cf-vars.yml cf_versions.yml"
-          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
+          OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-latest-capi.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/mysql/results/"
       - task: bosh-clean-up
         attempts: 3
@@ -523,7 +604,7 @@ jobs:
           BBL_STATE_DIR: perf-tests/bbl-state
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
-          GIT_COMMIT_MESSAGE: Results for cf-deployment ((.:cf-versions.cf_deployment_version)), ((cloud_controller_type)) cc with mysql ccdb
+          GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with mysql ccdb
       - put: results
         params:
           repository: cf-performance-tests-pipeline
@@ -539,7 +620,7 @@ jobs:
         - get: cf-performance-tests-pipeline
           trigger: true
           passed: [run-perf-tests-mysql]
-        - get: cf-deployment
+        - get: capi-release-ci-passed
           trigger: true
           passed: [run-perf-tests-mysql]
         - get: cf-deployment-concourse-tasks
