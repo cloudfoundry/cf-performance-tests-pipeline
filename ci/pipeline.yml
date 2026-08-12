@@ -198,7 +198,7 @@ resources:
     icon: lock
     source:
       uri: https://github.com/cloudfoundry/capi-ci-private.git
-      branch: main
+      branch: ari-bbl-env-pool
       pool: performance-tests
       username: ((ari-wg-gitbot-username))
       password: ((ari-wg-gitbot-token))
