@@ -96,6 +96,10 @@ resource_types:
   source:
     repository: ljfranklin/terraform-resource
     tag: latest
+- name: pool
+  type: registry-image
+  source:
+    repository: concourse/pool-resource
 
 resources:
   - name: cf-deployment-concourse-tasks
@@ -189,6 +193,15 @@ resources:
         test_environment: ((cloud_controller_type))((test_suffix))
         system_domain: *system_domain
         region: ((region))
+  - name: perf-tests-lock
+    type: pool
+    icon: lock
+    source:
+      uri: https://github.com/cloudfoundry/capi-ci-private.git
+      branch: main
+      pool: performance-tests
+      username: ((ari-wg-gitbot-username))
+      password: ((ari-wg-gitbot-token))
 
 jobs:
   - name: detect-new-versions
@@ -211,11 +224,13 @@ jobs:
     <<: *alert_failure
     plan:
       - get: cf-performance-tests-pipeline
-        trigger: true
         passed: [detect-new-versions]
       - get: capi-release-ci-passed
         trigger: true
         passed: [detect-new-versions]
+      - put: perf-tests-lock
+        params:
+          acquire: true
       - put: base-infra
         attempts: 3
         params:
@@ -228,10 +243,11 @@ jobs:
     plan:
       - in_parallel:
         - get: cf-performance-tests-pipeline
-          trigger: true
           passed: [create-base-infra]
         - get: capi-release-ci-passed
           trigger: true
+          passed: [create-base-infra]
+        - get: perf-tests-lock
           passed: [create-base-infra]
         - get: cf-deployment-concourse-tasks
         - get: capi-ci
@@ -260,10 +276,11 @@ jobs:
     plan:
       - in_parallel:
         - get: cf-performance-tests-pipeline
-          trigger: true
           passed: [deploy-director]
         - get: capi-release-ci-passed
           trigger: true
+          passed: [deploy-director]
+        - get: perf-tests-lock
           passed: [deploy-director]
         - get: cf-deployment
         - get: next-version
@@ -313,10 +330,11 @@ jobs:
     plan:
       - in_parallel:
         - get: cf-performance-tests-pipeline
-          trigger: true
           passed: [upload-dev-capi-release]
         - get: capi-release-ci-passed
           trigger: true
+          passed: [upload-dev-capi-release]
+        - get: perf-tests-lock
           passed: [upload-dev-capi-release]
         - get: cf-deployment
           passed: [upload-dev-capi-release]
@@ -414,10 +432,11 @@ jobs:
     plan:
       - in_parallel:
         - get: cf-performance-tests-pipeline
-          trigger: true
           passed: [run-perf-tests-postgres-15]
         - get: capi-release-ci-passed
           trigger: true
+          passed: [run-perf-tests-postgres-15]
+        - get: perf-tests-lock
           passed: [run-perf-tests-postgres-15]
         - get: cf-deployment
           passed: [run-perf-tests-postgres-15]
@@ -516,10 +535,11 @@ jobs:
     plan:
       - in_parallel:
         - get: cf-performance-tests-pipeline
-          trigger: true
           passed: [run-perf-tests-postgres]
         - get: capi-release-ci-passed
           trigger: true
+          passed: [run-perf-tests-postgres]
+        - get: perf-tests-lock
           passed: [run-perf-tests-postgres]
         - get: cf-deployment
           passed: [run-perf-tests-postgres]
@@ -618,18 +638,24 @@ jobs:
     plan:
       - in_parallel:
         - get: cf-performance-tests-pipeline
-          trigger: true
           passed: [run-perf-tests-mysql]
         - get: capi-release-ci-passed
           trigger: true
           passed: [run-perf-tests-mysql]
+        - get: perf-tests-lock
+          passed: [run-perf-tests-mysql]
         - get: cf-deployment-concourse-tasks
         - get: bbl-state
         - get: base-infra
-      - load_var: base-infra
-        file: base-infra/metadata
-        format: json
-      - *destroy_all
+      - do:
+        - load_var: base-infra
+          file: base-infra/metadata
+          format: json
+        - *destroy_all
+        ensure:
+          put: perf-tests-lock
+          params:
+            release: perf-tests-lock
 
   - name: manual-teardown-cf-only
     serial: true
