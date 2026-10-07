@@ -411,11 +411,13 @@ jobs:
           VARS_FILES: "cf-vars.yml cf_versions.yml"
           OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-latest-capi.yml operations/use-postgres.yml operations/use-postgres-15.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres15/results/"
+        on_failure: *delete_cf
       - task: bosh-clean-up
         attempts: 3
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
           BBL_STATE_DIR: perf-tests/bbl-state
+        on_failure: *delete_cf
       - task: run-performance-tests
         attempts: 3
         file: cf-deployment-concourse-tasks/run-errand/task.yml
@@ -424,6 +426,7 @@ jobs:
           DEPLOYMENT_NAME: cf
           ERRAND_NAME: cf-performance-tests-errand
           KEEP_ALIVE: true
+        on_failure: *delete_cf
       - load_var: cf-versions
         file: cf-versions/cf_versions.yml
         format: yaml
@@ -513,11 +516,13 @@ jobs:
           VARS_FILES: "cf-vars.yml cf_versions.yml"
           OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-latest-capi.yml operations/use-postgres.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/postgres/results/"
+        on_failure: *delete_cf
       - task: bosh-clean-up
         attempts: 3
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
           BBL_STATE_DIR: perf-tests/bbl-state
+        on_failure: *delete_cf
       - task: run-performance-tests
         attempts: 3
         file: cf-deployment-concourse-tasks/run-errand/task.yml
@@ -526,6 +531,7 @@ jobs:
           DEPLOYMENT_NAME: cf
           ERRAND_NAME: cf-performance-tests-errand
           KEEP_ALIVE: true
+        on_failure: *delete_cf
       - load_var: cf-versions
         file: cf-versions/cf_versions.yml
         format: yaml
@@ -616,11 +622,13 @@ jobs:
           VARS_FILES: "cf-vars.yml cf_versions.yml"
           OPS_FILES: "operations/performance-tests-errand.yml operations/use-compiled-releases.yml operations/use-latest-capi.yml((additional-ops-files)) operations/scale-up-vms.yml operations/use-external-blobstore.yml operations/use-s3-blobstore.yml operations/log-db-queries.yml operations/tag-bbl-env.yml"
           BOSH_DEPLOY_ARGS: "--var=results_folder=/tmp/results/rails/mysql/results/"
+        on_failure: *delete_cf
       - task: bosh-clean-up
         attempts: 3
         file: cf-deployment-concourse-tasks/bosh-cleanup/task.yml
         params:
           BBL_STATE_DIR: perf-tests/bbl-state
+        on_failure: *delete_cf
       - task: run-performance-tests
         attempts: 3
         file: cf-deployment-concourse-tasks/run-errand/task.yml
@@ -629,6 +637,7 @@ jobs:
           DEPLOYMENT_NAME: cf
           ERRAND_NAME: cf-performance-tests-errand
           KEEP_ALIVE: true
+        on_failure: *delete_cf
       - load_var: cf-versions
         file: cf-versions/cf_versions.yml
         format: yaml
