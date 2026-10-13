@@ -9,6 +9,7 @@ image_resource:
 inputs:
   - name: cf-performance-tests-pipeline
   - name: bbl-state
+  - name: capi-release-ci-passed
 
 outputs:
   - name: cf-performance-tests-pipeline
