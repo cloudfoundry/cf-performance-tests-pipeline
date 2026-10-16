@@ -4,87 +4,41 @@ set -euo pipefail
 
 task_root="$(pwd)"
 cf_perf_tests_pipeline_repo="${task_root}/cf-performance-tests-pipeline"
+capi_release_repo="${task_root}/capi-release-ci-passed"
 bbl_state="${task_root}/bbl-state/${BBL_STATE_DIR}"
 
 prune_released_rc_results() {
-  local test_dir
-  local newest_result_file
-  local newest_capi_version
-  local released_base_version
   local deleted=0
+  declare -A released_versions=()
 
-  # Find all test result directories and iterate over them.
-  while IFS= read -r test_dir; do
+  # Build the set of released versions from capi-release git tags (e.g. "1.249.0").
+  # The capi-release-ci-passed resource uses `fetch_tags: true` so tags are available locally.
+  local tag
+  while IFS= read -r tag; do
+    [[ -n "$tag" ]] && released_versions["$tag"]=1
+  done < <(git -C "$capi_release_repo" tag -l 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
 
-    # Retention policy per test folder: if newest result has a release capi-version "X.Y.Z (sha)",
-    # prune older "X.Y.Z-rc (sha)" files in that same folder.
-    newest_result_file="$({
-      find "$test_dir" -maxdepth 1 -type f -name '*.json' -print |
-        awk '
-          {
-            ts = 0
-            if (match($0, /-[0-9]+\.json$/)) {
-              # match gives "-<digits>.json"; strip leading "-" and trailing ".json".
-              ts = substr($0, RSTART + 1, RLENGTH - 6)
-            }
-            # Sort newest first by embedded filename timestamp.
-            printf("%012d\t%s\n", ts, $0)
-          }
-        ' |
-        sort -r |
-        cut -f2- |
-        head -n 1
-    } || true)"
+  # Safety net: never prune based on an empty released set.
+  if [[ ${#released_versions[@]} -eq 0 ]]; then
+    echo "No released capi-release tags found; skipping RC pruning."
+    return
+  fi
 
-    if [[ -z "$newest_result_file" ]]; then
-      continue
+  # Delete any "X.Y.Z-rc[.N]? (sha)" result file whose base version X.Y.Z is released.
+  local result_file
+  local capi_version
+  local rc_base_version
+  while IFS= read -r result_file; do
+    capi_version="$(jq -r '.capiVersion // ""' "$result_file" 2>/dev/null || true)"
+    rc_base_version="$(printf '%s' "$capi_version" | sed -nE 's/^([0-9]+\.[0-9]+\.[0-9]+)-rc(\.[0-9]+)? \([0-9a-f]{7,40}\)$/\1/p')"
+
+    if [[ -n "$rc_base_version" && -n "${released_versions[$rc_base_version]:-}" ]]; then
+      rm -f "$result_file"
+      deleted=$((deleted + 1))
     fi
+  done < <(find "$cf_perf_tests_pipeline_repo/results" -type f -name '*.json')
 
-    newest_capi_version="$(jq -r '.capiVersion // ""' "$newest_result_file" 2>/dev/null || true)"
-    # Matches released versions like: "1.249.0 (f83f4a3)"; does not match RC forms.
-    released_base_version="$(printf '%s' "$newest_capi_version" | sed -nE 's/^([0-9]+\.[0-9]+\.[0-9]+) \(([0-9a-f]{7,40})\)$/\1/p')"
-
-    # If newest file in this test folder is RC (or legacy/unknown), do not purge old results.
-    if [[ -z "$released_base_version" ]]; then
-      continue
-    fi
-
-    # Newest file is a released version -> scan newest-to-oldest and purge
-    # matching RC results until an older released base version boundary.
-    while IFS= read -r result_file; do
-      local capi_version
-      local rc_base_version
-      local older_released_base_version
-
-      capi_version="$(jq -r '.capiVersion // ""' "$result_file" 2>/dev/null || true)"
-      rc_base_version="$(printf '%s' "$capi_version" | sed -nE 's/^([0-9]+\.[0-9]+\.[0-9]+)-rc \(([0-9a-f]{7,40})\)$/\1/p')"
-      older_released_base_version="$(printf '%s' "$capi_version" | sed -nE 's/^([0-9]+\.[0-9]+\.[0-9]+) \(([0-9a-f]{7,40})\)$/\1/p')"
-
-      if [[ -n "$older_released_base_version" && "$older_released_base_version" != "$released_base_version" ]]; then
-        break
-      fi
-
-      if [[ "$rc_base_version" == "$released_base_version" ]]; then
-        rm -f "$result_file"
-        deleted=$((deleted + 1))
-      fi
-    done < <(
-      find "$test_dir" -maxdepth 1 -type f -name '*.json' -print |
-        awk '
-          {
-            ts = 0
-            if (match($0, /-[0-9]+\.json$/)) {
-              ts = substr($0, RSTART + 1, RLENGTH - 6)
-            }
-            printf("%012d\t%s\n", ts, $0)
-          }
-        ' |
-        sort -r |
-        cut -f2-
-    )
-  done < <(find "$cf_perf_tests_pipeline_repo/results" -type f -name '*.json' -exec dirname {} \; | sort -u)
-
-  echo "Pruned ${deleted} '-rc (sha)' result files across test folders where newest result is released."
+  echo "Pruned ${deleted} '-rc (sha)' result files for released versions."
 }
 
 echo -e "\nInitializing BOSH environment from bbl state..."

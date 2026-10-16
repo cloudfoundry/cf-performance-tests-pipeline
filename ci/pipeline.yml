@@ -155,6 +155,7 @@ resources:
     source:
       uri: https://github.com/cloudfoundry/capi-release.git
       branch: ci-passed
+      fetch_tags: true
   - name: next-version
     type: semver
     icon: counter
