@@ -134,6 +134,15 @@ resources:
       username: ((ari-wg-gitbot-username))
       password: ((ari-wg-gitbot-token))
       branch: ((results-branch))
+      paths: [results/**/*.json]
+  - name: cf-performance-tests-pipeline-push
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/cloudfoundry/cf-performance-tests-pipeline.git
+      username: ((ari-wg-gitbot-username))
+      password: ((ari-wg-gitbot-token))
+      branch: ((results-branch))
 
   - name: bbl-state
     type: git
@@ -347,6 +356,7 @@ jobs:
       - in_parallel:
         - get: cf-performance-tests-pipeline
           passed: [upload-dev-capi-release]
+        - get: results
         - get: capi-release-ci-passed
           trigger: true
           passed: [upload-dev-capi-release]
@@ -439,9 +449,9 @@ jobs:
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with postgres 15 ccdb
-      - put: results
+      - put: cf-performance-tests-pipeline-push
         params:
-          repository: cf-performance-tests-pipeline
+          repository: results
           rebase: true
       - *delete_cf
   - name: run-perf-tests-postgres
@@ -452,6 +462,7 @@ jobs:
       - in_parallel:
         - get: cf-performance-tests-pipeline
           passed: [run-perf-tests-postgres-15]
+        - get: results
         - get: capi-release-ci-passed
           trigger: true
           passed: [run-perf-tests-postgres-15]
@@ -544,9 +555,9 @@ jobs:
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with postgres ccdb
-      - put: results
+      - put: cf-performance-tests-pipeline-push
         params:
-          repository: cf-performance-tests-pipeline
+          repository: results
           rebase: true
       - *delete_cf
 
@@ -558,6 +569,7 @@ jobs:
       - in_parallel:
         - get: cf-performance-tests-pipeline
           passed: [run-perf-tests-postgres]
+        - get: results
         - get: capi-release-ci-passed
           trigger: true
           passed: [run-perf-tests-postgres]
@@ -650,9 +662,9 @@ jobs:
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with mysql ccdb
-      - put: results
+      - put: cf-performance-tests-pipeline-push
         params:
-          repository: cf-performance-tests-pipeline
+          repository: results
           rebase: true
       - *delete_cf
 

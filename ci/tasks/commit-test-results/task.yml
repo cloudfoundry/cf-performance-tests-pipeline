@@ -7,15 +7,15 @@ image_resource:
     tag: latest
 
 inputs:
-  - name: cf-performance-tests-pipeline
+  - name: results
   - name: bbl-state
   - name: capi-release-ci-passed
 
 outputs:
-  - name: cf-performance-tests-pipeline
+  - name: results
 
 run:
-  path: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.sh
+  path: results/ci/tasks/commit-test-results/task.sh
 
 params:
   BBL_STATE_DIR:
