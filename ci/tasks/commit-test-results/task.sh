@@ -7,6 +7,10 @@ results_repo="${task_root}/results"
 capi_release_repo="${task_root}/capi-release-ci-passed"
 bbl_state="${task_root}/bbl-state/${BBL_STATE_DIR}"
 
+# This job only deals with "rails" results for a single CCDB (e.g. postgres15),
+# so scope pruning and committing to that database's subtree.
+results_dir="${results_repo}/results/rails/${CCDB}"
+
 prune_released_rc_results() {
   local deleted=0
   declare -A released_versions=()
@@ -36,7 +40,7 @@ prune_released_rc_results() {
       rm -f "$result_file"
       deleted=$((deleted + 1))
     fi
-  done < <(find "$results_repo/results" -type f -name '*.json')
+  done < <(find "$results_dir" -type f -name '*.json')
 
   echo "Pruned ${deleted} '-rc (sha)' result files for released versions."
 }
@@ -59,11 +63,11 @@ echo -e "\nInstalling git lfs..."
 apt-get update && apt-get -y install git-lfs
 git lfs install
 
-if [[ $(git -C "$results_repo" status --porcelain) ]]; then
+if [[ $(git -C "$results_repo" status --porcelain -- "$results_dir") ]]; then
   echo -e "\nCommitting test results..."
   git -C "$results_repo" config user.name "$GIT_COMMIT_USERNAME"
   git -C "$results_repo" config user.email "$GIT_COMMIT_EMAIL"
-  git -C "$results_repo" add --all "$results_repo/results"
+  git -C "$results_repo" add --all "$results_dir"
   git -C "$results_repo" commit -m "$GIT_COMMIT_MESSAGE"
 fi
 

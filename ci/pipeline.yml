@@ -446,6 +446,7 @@ jobs:
         file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
         params:
           BBL_STATE_DIR: perf-tests/bbl-state
+          CCDB: postgres15
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with postgres 15 ccdb
@@ -552,6 +553,7 @@ jobs:
         file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
         params:
           BBL_STATE_DIR: perf-tests/bbl-state
+          CCDB: postgres
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with postgres ccdb
@@ -659,6 +661,7 @@ jobs:
         file: cf-performance-tests-pipeline/ci/tasks/commit-test-results/task.yml
         params:
           BBL_STATE_DIR: perf-tests/bbl-state
+          CCDB: mysql
           GIT_COMMIT_EMAIL: ((ari-wg-gitbot-email))
           GIT_COMMIT_USERNAME: ((ari-wg-gitbot-username))
           GIT_COMMIT_MESSAGE: Results for capi-release ((.:cf-versions.capi_version)), ((cloud_controller_type)) cc with mysql ccdb
