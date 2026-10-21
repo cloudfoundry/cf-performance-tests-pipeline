@@ -3,9 +3,13 @@
 set -euo pipefail
 
 task_root="$(pwd)"
-cf_perf_tests_pipeline_repo="${task_root}/cf-performance-tests-pipeline"
+results_repo="${task_root}/results"
 capi_release_repo="${task_root}/capi-release-ci-passed"
 bbl_state="${task_root}/bbl-state/${BBL_STATE_DIR}"
+
+# This job only deals with "rails" results for a single CCDB (e.g. postgres15),
+# so scope pruning and committing to that database's subtree.
+results_dir="${results_repo}/results/rails/${CCDB}"
 
 prune_released_rc_results() {
   local deleted=0
@@ -36,7 +40,7 @@ prune_released_rc_results() {
       rm -f "$result_file"
       deleted=$((deleted + 1))
     fi
-  done < <(find "$cf_perf_tests_pipeline_repo/results" -type f -name '*.json')
+  done < <(find "$results_dir" -type f -name '*.json')
 
   echo "Pruned ${deleted} '-rc (sha)' result files for released versions."
 }
@@ -47,8 +51,8 @@ pushd "$bbl_state" >/dev/null
 popd >/dev/null
 
 echo -e "\nDownloading test results from errand VM..."
-bosh -d cf scp cf-performance-tests-errand/0:/tmp/results.tar.gz "${cf_perf_tests_pipeline_repo}/results.tar.gz"
-pushd "$cf_perf_tests_pipeline_repo" >/dev/null
+bosh -d cf scp cf-performance-tests-errand/0:/tmp/results.tar.gz "${results_repo}/results.tar.gz"
+pushd "$results_repo" >/dev/null
   tar -xzvf results.tar.gz
   rm -rf results.tar.gz
 popd >/dev/null
@@ -59,12 +63,12 @@ echo -e "\nInstalling git lfs..."
 apt-get update && apt-get -y install git-lfs
 git lfs install
 
-if [[ $(git -C "$cf_perf_tests_pipeline_repo" status --porcelain) ]]; then
+if [[ $(git -C "$results_repo" status --porcelain -- "$results_dir") ]]; then
   echo -e "\nCommitting test results..."
-  git -C "$cf_perf_tests_pipeline_repo" config user.name "$GIT_COMMIT_USERNAME"
-  git -C "$cf_perf_tests_pipeline_repo" config user.email "$GIT_COMMIT_EMAIL"
-  git -C "$cf_perf_tests_pipeline_repo" add --all "$cf_perf_tests_pipeline_repo/results"
-  git -C "$cf_perf_tests_pipeline_repo" commit -m "$GIT_COMMIT_MESSAGE"
+  git -C "$results_repo" config user.name "$GIT_COMMIT_USERNAME"
+  git -C "$results_repo" config user.email "$GIT_COMMIT_EMAIL"
+  git -C "$results_repo" add --all "$results_dir"
+  git -C "$results_repo" commit -m "$GIT_COMMIT_MESSAGE"
 fi
 
 echo -e "\nFinished."
