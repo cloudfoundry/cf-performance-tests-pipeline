@@ -3,6 +3,7 @@
 | v60.8.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v60.6.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v60.2.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| v60.12.0  | :white_check_mark: | :white_check_mark: | :x:                |
 | v60.11.0  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v60.10.0  | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | v60.1.0   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
