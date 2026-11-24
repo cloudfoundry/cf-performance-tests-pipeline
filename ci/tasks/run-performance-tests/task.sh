@@ -47,8 +47,8 @@ fi
 
 pushd "$cf_perf_tests_repo" >/dev/null
   cat << EOF > ./config.yml
-api: "localhost:9022"
-use_http: true
+api: "localhost:9024"
+use_http: false
 skip_ssl_validation: true
 cf_deployment_version: "$cf_deployment_version"
 capi_version: "$capi_version"
